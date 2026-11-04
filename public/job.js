@@ -1,4 +1,4 @@
-const API="";
+const API = "https://bys-9pma.onrender.com";
 const box=document.getElementById("jobDetails");
 document.getElementById("year").textContent=new Date().getFullYear();
 const id=new URLSearchParams(location.search).get("id");
