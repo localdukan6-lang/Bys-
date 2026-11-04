@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Panel | BYS ASSOCIATE JOB</title><link rel="stylesheet" href="style.css"></head>
+<body class="admin-body">
+<header class="brand"><div class="logo">BYS</div><div><h1>BYS ASSOCIATE JOB</h1><p>Administration Panel</p></div></header>
+<main class="admin-wrap">
+<section id="loginBox" class="admin-card narrow"><h2>Admin Login</h2>
+<form id="loginForm"><label>Username<input name="username" required autocomplete="username"></label><label>Password<input name="password" type="password" required autocomplete="current-password"></label><button class="primary">Login</button></form><p id="loginMessage" class="message"></p></section>
+<section id="dashboard" hidden>
+<div class="admin-top"><h2>Admin Dashboard</h2><button id="logoutBtn" class="danger">Logout</button></div>
+<div class="tabs"><button class="tab active" data-tab="jobsTab">Manage Jobs</button><button class="tab" data-tab="appsTab">Applications</button></div>
+<section id="jobsTab" class="admin-card">
+<h3 id="formHeading">Add New Job</h3>
+<form id="jobForm" class="form-grid">
+<input type="hidden" name="jobId">
+<label class="wide">Job Title *<input name="title" required></label>
+<label>Organization<input name="organization"></label>
+<label>Category<select name="category"><option>Government</option><option selected>Private</option></select></label>
+<label>Location<input name="location" placeholder="e.g. India / Shahjahanpur"></label>
+<label>Total Vacancies<input name="vacancies"></label>
+<label>Qualification<input name="qualification"></label>
+<label>Age Limit<input name="ageLimit"></label>
+<label>Salary<input name="salary"></label>
+<label>Application Fee<input name="applicationFee"></label>
+<label>Selection Process<input name="selectionProcess"></label>
+<label>Application Start Date<input name="startDate" placeholder="DD-MM-YYYY"></label>
+<label>Last Date<input name="lastDate" placeholder="DD-MM-YYYY"></label>
+<label>Exam Date<input name="examDate" placeholder="DD-MM-YYYY"></label>
+<label>Status<select name="status"><option>Upcoming</option><option selected>Application Started</option><option>Last Date Extended</option><option>Application Closed</option><option>Admit Card Released</option><option>Exam Date Announced</option><option>Answer Key Released</option><option>Result Declared</option></select></label>
+<label>Apply Online Link<input name="applyLink" type="url"></label>
+<label>Notification PDF Link<input name="notificationLink" type="url"></label>
+<label>Official Website Link<input name="officialLink" type="url"></label>
+<label>Syllabus Link<input name="syllabusLink" type="url"></label>
+<label class="wide">Full Job Description<textarea name="description" rows="5"></textarea></label>
+<label class="wide">How to Apply<textarea name="howToApply" rows="4"></textarea></label>
+<label class="check"><input name="featured" type="checkbox"> Show as featured job</label>
+<div class="wide actions"><button class="primary" type="submit">Save Job</button><button type="button" id="resetForm">Clear Form</button></div>
+</form><p id="jobMessage" class="message"></p>
+<h3>Published Jobs</h3><div id="adminJobs" class="table-wrap">Loading...</div>
+</section>
+<section id="appsTab" class="admin-card" hidden><h3>Applications</h3><div id="applications" class="table-wrap">Loading...</div></section>
+</section>
+</main>
+<script src="admin.js"></script>
+</body></html>
