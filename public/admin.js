@@ -1,4 +1,4 @@
-const API="";
+const API = "https://bys-9pma.onrender.com";
 let token=localStorage.getItem("bysAdminToken")||"";
 const $=s=>document.querySelector(s);
 const loginBox=$("#loginBox"),dashboard=$("#dashboard"),jobForm=$("#jobForm");
