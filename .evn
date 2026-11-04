@@ -1,0 +1,9 @@
+PORT=5000
+
+MONGODB_URI=mongodb+srv://YOUR_USERNAME:YOUR_PASSWORD@YOUR_CLUSTER.mongodb.net/bys_associate_job?retryWrites=true&w=majority
+
+JWT_SECRET=BYS_JOB_SECURE_SECRET_2026_X9K72P8M4L6Q
+
+ADMIN_USERNAME=admin
+
+ADMIN_PASSWORD=admin@123
