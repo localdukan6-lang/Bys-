@@ -11,497 +11,9 @@
 
 <link rel="stylesheet" href="style.css">
 
-<!-- Font Awesome Icons -->
 <link rel="stylesheet"
 href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
-<style>
-
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-html {
-    scroll-behavior: smooth;
-}
-
-body {
-    font-family: Arial, sans-serif;
-    background: #f2f5fa;
-    color: #222;
-}
-
-/* TOP BAR */
-
-.topbar {
-    background: #081b3a;
-    color: white;
-    padding: 11px 5%;
-    display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 10px;
-    font-size: 13px;
-}
-
-.topbar a {
-    color: white;
-    text-decoration: none;
-    margin-right: 17px;
-}
-
-.topbar a:hover {
-    color: #ffc107;
-}
-
-/* BRAND HEADER */
-
-.brand {
-    background: white;
-    padding: 18px 5%;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-.logo {
-    width: 65px;
-    height: 65px;
-    border-radius: 12px;
-    background: #102a56;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 25px;
-    font-weight: bold;
-}
-
-.brand h1 {
-    color: #102a56;
-    font-size: 27px;
-}
-
-.brand p {
-    color: #666;
-    font-size: 13px;
-    margin-top: 5px;
-}
-
-/* NAVIGATION */
-
-.nav {
-    background: #102a56;
-    padding: 0 5%;
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.nav a {
-    display: inline-block;
-    color: white;
-    text-decoration: none;
-    padding: 15px 13px;
-    font-size: 14px;
-}
-
-.nav a:hover {
-    background: #f0a500;
-    color: #111;
-}
-
-.menu-title {
-    font-weight: bold;
-}
-
-/* HERO BANNER */
-
-.hero {
-    margin: 20px auto;
-    width: 90%;
-    max-width: 1250px;
-    height: 300px;
-    border-radius: 12px;
-    overflow: hidden;
-    position: relative;
-    background: #102a56;
-}
-
-.hero img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-}
-
-.hero-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(90deg,
-    rgba(0,0,0,.75),
-    rgba(0,0,0,.15));
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 40px;
-    color: white;
-}
-
-.hero-overlay h2 {
-    font-size: 34px;
-    margin-bottom: 12px;
-}
-
-.hero-overlay p {
-    font-size: 17px;
-}
-
-/* MAIN CONTAINER */
-
-.container {
-    width: 90%;
-    max-width: 1250px;
-    margin: auto;
-}
-
-.welcome-title {
-    color: #102a56;
-    margin: 20px 0 12px;
-    font-size: 25px;
-}
-
-.welcome {
-    background: white;
-    padding: 20px;
-    border-left: 5px solid #f0a500;
-    border-radius: 8px;
-    line-height: 1.8;
-    margin-bottom: 20px;
-}
-
-/* SECTION TITLE */
-
-.section-title {
-    color: #102a56;
-    font-size: 23px;
-    margin: 25px 0 15px;
-}
-
-/* LATEST JOBS */
-
-.latest-jobs {
-    background: white;
-    border-radius: 10px;
-    padding: 20px;
-    border-top: 5px solid #e63946;
-    margin-bottom: 25px;
-}
-
-.latest-jobs h2 {
-    color: #102a56;
-    margin-bottom: 10px;
-}
-
-.latest-subtitle {
-    color: #777;
-    margin-bottom: 15px;
-}
-
-/* QUICK LINKS */
-
-.quick-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin: 25px 0;
-}
-
-.quick {
-    padding: 17px 10px;
-    color: white;
-    text-align: center;
-    text-decoration: none;
-    font-weight: bold;
-    border-radius: 8px;
-    transition: .3s;
-}
-
-.quick:hover {
-    transform: translateY(-4px);
-    opacity: .9;
-}
-
-.q1 {background:#174ea6;}
-.q2 {background:#e65100;}
-.q3 {background:#008577;}
-.q4 {background:#673ab7;}
-.q5 {background:#455a64;}
-.q6 {background:#c2185b;}
-.q7 {background:#1565c0;}
-.q8 {background:#2e7d32;}
-
-/* SEARCH */
-
-.searchbar {
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    display: flex;
-    gap: 10px;
-    margin: 25px 0;
-}
-
-.searchbar input,
-.searchbar select {
-    flex: 1;
-    min-width: 0;
-    padding: 13px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    font-size: 14px;
-}
-
-.searchbar button {
-    padding: 13px 25px;
-    background: #102a56;
-    border: none;
-    color: white;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-/* JOB BOXES */
-
-.columns {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-}
-
-.panel {
-    background: white;
-    padding: 18px;
-    border-radius: 9px;
-    box-shadow: 0 2px 10px rgba(0,0,0,.05);
-    border-top: 4px solid #102a56;
-    scroll-margin-top: 15px;
-}
-
-.panel h2 {
-    color: #102a56;
-    font-size: 19px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #eee;
-    margin-bottom: 12px;
-}
-
-.link-list a {
-    display: block;
-    padding: 12px 8px;
-    text-decoration: none;
-    color: #174ea6;
-    border-bottom: 1px dashed #ddd;
-    font-size: 14px;
-}
-
-.link-list a:hover {
-    background: #f2f6ff;
-    color: #e65100;
-}
-
-.link-list p {
-    color: #777;
-    padding: 10px 0;
-}
-
-/* DISCLAIMER */
-
-.disclaimer {
-    background: #fff4d6;
-    padding: 17px;
-    margin: 30px 0;
-    border-radius: 7px;
-    font-size: 13px;
-    line-height: 1.7;
-}
-
-/* FOOTER */
-
-footer {
-    background: #081b3a;
-    color: white;
-    margin-top: 30px;
-}
-
-.footer-container {
-    width: 90%;
-    max-width: 1250px;
-    margin: auto;
-    padding: 40px 0;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 30px;
-}
-
-.footer-box h3 {
-    margin-bottom: 18px;
-    color: #ffc107;
-}
-
-.footer-box p {
-    color: #ddd;
-    line-height: 1.8;
-    font-size: 14px;
-}
-
-.footer-box a {
-    display: block;
-    color: #ddd;
-    text-decoration: none;
-    margin: 11px 0;
-    font-size: 14px;
-}
-
-.footer-box a:hover {
-    color: #ffc107;
-}
-
-/* SOCIAL ICONS */
-
-.social-icons {
-    display: flex;
-    gap: 13px;
-    flex-wrap: wrap;
-}
-
-.social-icons a {
-    width: 42px;
-    height: 42px;
-    background: white;
-    color: #102a56;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    font-size: 19px;
-    transition: .3s;
-}
-
-.social-icons a:hover {
-    background: #ffc107;
-    transform: translateY(-4px);
-}
-
-.copyright {
-    text-align: center;
-    border-top: 1px solid #34445f;
-    padding: 18px;
-    font-size: 13px;
-    color: #ddd;
-}
-
-/* WHATSAPP FLOATING BUTTON */
-
-.whatsapp-float {
-    position: fixed;
-    right: 20px;
-    bottom: 25px;
-    background: #25D366;
-    color: white;
-    width: 58px;
-    height: 58px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 32px;
-    text-decoration: none;
-    box-shadow: 0 4px 15px rgba(0,0,0,.3);
-    z-index: 999;
-}
-
-.whatsapp-float:hover {
-    background: #128C7E;
-}
-
-/* MOBILE RESPONSIVE */
-
-@media(max-width:768px) {
-
-    .topbar {
-        justify-content: center;
-        text-align: center;
-    }
-
-    .brand h1 {
-        font-size: 19px;
-    }
-
-    .logo {
-        width: 52px;
-        height: 52px;
-        font-size: 20px;
-    }
-
-    .nav {
-        padding: 0;
-        overflow-x: auto;
-        flex-wrap: nowrap;
-    }
-
-    .nav a {
-        white-space: nowrap;
-        padding: 13px 12px;
-        font-size: 13px;
-    }
-
-    .hero {
-        width: 94%;
-        height: 190px;
-    }
-
-    .hero-overlay {
-        padding: 18px;
-    }
-
-    .hero-overlay h2 {
-        font-size: 22px;
-    }
-
-    .hero-overlay p {
-        font-size: 13px;
-    }
-
-    .container {
-        width: 94%;
-    }
-
-    .quick-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .columns {
-        grid-template-columns: 1fr;
-    }
-
-    .searchbar {
-        flex-direction: column;
-    }
-
-    .searchbar button {
-        width: 100%;
-    }
-
-    .footer-container {
-        grid-template-columns: 1fr;
-    }
-
-}
-
-</style>
 </head>
 
 <body>
@@ -525,7 +37,7 @@ footer {
 </div>
 
 
-<!-- BRAND -->
+<!-- BRAND HEADER -->
 
 <header class="brand">
 
@@ -565,26 +77,23 @@ footer {
 </nav>
 
 
-<!-- TOP BANNER IMAGE -->
+<!-- HERO BANNER IMAGE -->
 
 <section class="hero">
 
-    <!-- अपनी Banner Image का नाम banner.jpg रखें -->
-
-    <img src="banner.jpg" alt="BYS Associate Job Latest Job Updates"
-    onerror="this.style.display='none'">
+    <img
+        src="banner.jpg"
+        alt="BYS Associate Job Latest Job Updates"
+        onerror="this.style.display='none'"
+    >
 
     <div class="hero-overlay">
 
         <h2>Find Your Dream Job</h2>
 
-        <p>
-        Latest Government & Private Job Updates
-        </p>
+        <p>Latest Government & Private Job Updates</p>
 
-        <p>
-        Jobs According to Your Qualification
-        </p>
+        <p>Jobs According to Your Qualification</p>
 
     </div>
 
@@ -594,7 +103,7 @@ footer {
 <main class="container">
 
 
-<!-- WELCOME -->
+<!-- WELCOME SECTION -->
 
 <h2 class="welcome-title">
 BYS ASSOCIATE JOB – Latest Jobs According to Qualification
@@ -618,7 +127,7 @@ BYS ASSOCIATE JOB – Latest Jobs According to Qualification
     <h2>🔥 Latest Jobs – All Latest Vacancies</h2>
 
     <p class="latest-subtitle">
-    Latest Government & Private Jobs – All Qualifications
+        Latest Government & Private Jobs – All Qualifications
     </p>
 
     <div id="jobListLatest" class="link-list">
@@ -630,20 +139,26 @@ BYS ASSOCIATE JOB – Latest Jobs According to Qualification
 </section>
 
 
-<!-- QUICK LINKS -->
+<!-- QUALIFICATION QUICK LINKS -->
 
 <h2 class="section-title">Search Jobs By Qualification</h2>
 
 <div class="quick-grid">
 
     <a href="#jobs-10th" class="quick q1">10th Pass Jobs</a>
+
     <a href="#jobs-12th" class="quick q2">12th Pass Jobs</a>
+
     <a href="#jobs-iti" class="quick q3">ITI Jobs</a>
+
     <a href="#jobs-diploma" class="quick q4">Diploma Jobs</a>
 
     <a href="#jobs-uneducated" class="quick q5">अनपढ़ Jobs</a>
+
     <a href="#jobs-graduate" class="quick q6">Graduate Jobs</a>
+
     <a href="#jobs-bsc" class="quick q7">B.Sc Jobs</a>
+
     <a href="#jobs-bcom" class="quick q8">B.Com Jobs</a>
 
 </div>
@@ -662,8 +177,10 @@ BYS ASSOCIATE JOB – Latest Jobs According to Qualification
     <select id="categoryFilter">
 
         <option value="">All Categories</option>
-        <option>Government</option>
-        <option>Private</option>
+
+        <option value="Government">Government</option>
+
+        <option value="Private">Private</option>
 
     </select>
 
@@ -677,100 +194,160 @@ BYS ASSOCIATE JOB – Latest Jobs According to Qualification
 <div class="columns">
 
 
-<section class="panel" id="jobs-10th">
-    <h2>10th Pass Jobs</h2>
-    <div id="jobList10th" class="link-list">
-        <p>Loading jobs...</p>
-    </div>
-</section>
+    <!-- 10TH JOBS -->
+
+    <section class="panel" id="jobs-10th">
+
+        <h2>10th Pass Jobs</h2>
+
+        <div id="jobList10th" class="link-list">
+            <p>Loading jobs...</p>
+        </div>
+
+    </section>
 
 
-<section class="panel" id="jobs-12th">
-    <h2>12th Pass Jobs</h2>
-    <div id="jobList12th" class="link-list">
-        <p>Loading jobs...</p>
-    </div>
-</section>
+    <!-- 12TH JOBS -->
+
+    <section class="panel" id="jobs-12th">
+
+        <h2>12th Pass Jobs</h2>
+
+        <div id="jobList12th" class="link-list">
+            <p>Loading jobs...</p>
+        </div>
+
+    </section>
 
 
-<section class="panel" id="jobs-iti">
-    <h2>ITI Jobs</h2>
-    <div id="jobListITI" class="link-list">
-        <p>Loading jobs...</p>
-    </div>
-</section>
+    <!-- ITI JOBS -->
+
+    <section class="panel" id="jobs-iti">
+
+        <h2>ITI Jobs</h2>
+
+        <div id="jobListITI" class="link-list">
+            <p>Loading jobs...</p>
+        </div>
+
+    </section>
 
 
-<section class="panel" id="jobs-diploma">
-    <h2>Diploma Jobs</h2>
-    <div id="jobListDiploma" class="link-list">
-        <p>Loading jobs...</p>
-    </div>
-</section>
+    <!-- DIPLOMA JOBS -->
+
+    <section class="panel" id="jobs-diploma">
+
+        <h2>Diploma Jobs</h2>
+
+        <div id="jobListDiploma" class="link-list">
+            <p>Loading jobs...</p>
+        </div>
+
+    </section>
 
 
-<section class="panel" id="jobs-uneducated">
-    <h2>अनपढ़ / No Qualification Jobs</h2>
-    <div id="jobListUneducated" class="link-list">
-        <p>Loading jobs...</p>
-    </div>
-</section>
+    <!-- UNEDUCATED JOBS -->
+
+    <section class="panel" id="jobs-uneducated">
+
+        <h2>अनपढ़ / No Qualification Jobs</h2>
+
+        <div id="jobListUneducated" class="link-list">
+            <p>Loading jobs...</p>
+        </div>
+
+    </section>
 
 
-<section class="panel" id="jobs-graduate">
-    <h2>Graduate Jobs</h2>
-    <div id="jobListGraduate" class="link-list">
-        <p>Loading jobs...</p>
-    </div>
-</section>
+    <!-- GRADUATE JOBS -->
+
+    <section class="panel" id="jobs-graduate">
+
+        <h2>Graduate Jobs</h2>
+
+        <div id="jobListGraduate" class="link-list">
+            <p>Loading jobs...</p>
+        </div>
+
+    </section>
 
 
-<section class="panel" id="jobs-bsc">
-    <h2>B.Sc Jobs</h2>
-    <div id="jobListBSc" class="link-list">
-        <p>Loading jobs...</p>
-    </div>
-</section>
+    <!-- BSC JOBS -->
+
+    <section class="panel" id="jobs-bsc">
+
+        <h2>B.Sc Jobs</h2>
+
+        <div id="jobListBSc" class="link-list">
+            <p>Loading jobs...</p>
+        </div>
+
+    </section>
 
 
-<section class="panel" id="jobs-bcom">
-    <h2>B.Com Jobs</h2>
-    <div id="jobListBCom" class="link-list">
-        <p>Loading jobs...</p>
-    </div>
-</section>
+    <!-- BCOM JOBS -->
+
+    <section class="panel" id="jobs-bcom">
+
+        <h2>B.Com Jobs</h2>
+
+        <div id="jobListBCom" class="link-list">
+            <p>Loading jobs...</p>
+        </div>
+
+    </section>
 
 
-<section class="panel" id="jobs-ba">
-    <h2>B.A Jobs</h2>
-    <div id="jobListBA" class="link-list">
-        <p>Loading jobs...</p>
-    </div>
-</section>
+    <!-- BA JOBS -->
+
+    <section class="panel" id="jobs-ba">
+
+        <h2>B.A Jobs</h2>
+
+        <div id="jobListBA" class="link-list">
+            <p>Loading jobs...</p>
+        </div>
+
+    </section>
 
 
-<section class="panel" id="jobs-btech">
-    <h2>B.Tech Jobs</h2>
-    <div id="jobListBTech" class="link-list">
-        <p>Loading jobs...</p>
-    </div>
-</section>
+    <!-- BTECH JOBS -->
+
+    <section class="panel" id="jobs-btech">
+
+        <h2>B.Tech Jobs</h2>
+
+        <div id="jobListBTech" class="link-list">
+            <p>Loading jobs...</p>
+        </div>
+
+    </section>
 
 
-<section class="panel" id="jobs-postgraduate">
-    <h2>Post Graduate Jobs</h2>
-    <div id="jobListPostGraduate" class="link-list">
-        <p>Loading jobs...</p>
-    </div>
-</section>
+    <!-- POST GRADUATE JOBS -->
+
+    <section class="panel" id="jobs-postgraduate">
+
+        <h2>Post Graduate Jobs</h2>
+
+        <div id="jobListPostGraduate" class="link-list">
+            <p>Loading jobs...</p>
+        </div>
+
+    </section>
 
 
-<section class="panel" id="jobs-other">
-    <h2>Other Qualification Jobs</h2>
-    <div id="jobListOther" class="link-list">
-        <p>Loading jobs...</p>
-    </div>
-</section>
+    <!-- OTHER JOBS -->
+
+    <section class="panel" id="jobs-other">
+
+        <h2>Other Qualification Jobs</h2>
+
+        <div id="jobListOther" class="link-list">
+            <p>Loading jobs...</p>
+        </div>
+
+    </section>
 
 
 </div>
@@ -797,32 +374,43 @@ BYS ASSOCIATE JOB – Latest Jobs According to Qualification
     <div class="footer-container">
 
 
+        <!-- ABOUT -->
+
         <div class="footer-box">
 
             <h3>BYS ASSOCIATE JOB</h3>
 
             <p>
-            BYS ASSOCIATE JOB is a job information platform
-            providing Government and Private job updates
-            according to different qualifications.
+                BYS ASSOCIATE JOB is a job information platform
+                providing Government and Private job updates
+                according to different qualifications.
             </p>
 
         </div>
 
+
+        <!-- IMPORTANT LINKS -->
 
         <div class="footer-box">
 
             <h3>Important Links</h3>
 
             <a href="index.html">Home</a>
+
             <a href="about.html">About Us</a>
+
             <a href="contact.html">Contact Us</a>
+
             <a href="privacy-policy.html">Privacy Policy</a>
+
             <a href="disclaimer.html">Disclaimer</a>
+
             <a href="terms.html">Terms & Conditions</a>
 
         </div>
 
+
+        <!-- SOCIAL MEDIA -->
 
         <div class="footer-box">
 
@@ -830,28 +418,63 @@ BYS ASSOCIATE JOB – Latest Jobs According to Qualification
 
             <div class="social-icons">
 
-                <a href="https://www.facebook.com/" target="_blank" aria-label="Facebook">
+                <a href="https://www.facebook.com/"
+                   target="_blank"
+                   rel="noopener"
+                   aria-label="Facebook">
+
                     <i class="fab fa-facebook-f"></i>
+
                 </a>
 
-                <a href="https://www.instagram.com/" target="_blank" aria-label="Instagram">
+
+                <a href="https://www.instagram.com/"
+                   target="_blank"
+                   rel="noopener"
+                   aria-label="Instagram">
+
                     <i class="fab fa-instagram"></i>
+
                 </a>
 
-                <a href="https://www.youtube.com/" target="_blank" aria-label="YouTube">
+
+                <a href="https://www.youtube.com/"
+                   target="_blank"
+                   rel="noopener"
+                   aria-label="YouTube">
+
                     <i class="fab fa-youtube"></i>
+
                 </a>
 
-                <a href="https://t.me/" target="_blank" aria-label="Telegram">
+
+                <a href="https://t.me/"
+                   target="_blank"
+                   rel="noopener"
+                   aria-label="Telegram">
+
                     <i class="fab fa-telegram"></i>
+
                 </a>
 
-                <a href="https://www.linkedin.com/" target="_blank" aria-label="LinkedIn">
+
+                <a href="https://www.linkedin.com/"
+                   target="_blank"
+                   rel="noopener"
+                   aria-label="LinkedIn">
+
                     <i class="fab fa-linkedin-in"></i>
+
                 </a>
 
-                <a href="https://wa.me/91XXXXXXXXXX" target="_blank" aria-label="WhatsApp">
+
+                <a href="https://wa.me/917088443877"
+                   target="_blank"
+                   rel="noopener"
+                   aria-label="WhatsApp">
+
                     <i class="fab fa-whatsapp"></i>
+
                 </a>
 
             </div>
@@ -862,9 +485,12 @@ BYS ASSOCIATE JOB – Latest Jobs According to Qualification
     </div>
 
 
+    <!-- COPYRIGHT -->
+
     <div class="copyright">
 
         © <span id="year"></span> BYS ASSOCIATE JOB.
+
         All Rights Reserved.
 
     </div>
@@ -872,18 +498,21 @@ BYS ASSOCIATE JOB – Latest Jobs According to Qualification
 </footer>
 
 
-<!-- FLOATING WHATSAPP -->
+<!-- FLOATING WHATSAPP BUTTON -->
 
 <a
-href="https://wa.me/917088443877"
-class="whatsapp-float"
-target="_blank"
-aria-label="Contact us on WhatsApp">
+    href="https://wa.me/917088443877"
+    class="whatsapp-float"
+    target="_blank"
+    rel="noopener"
+    aria-label="Contact us on WhatsApp">
 
     <i class="fab fa-whatsapp"></i>
 
 </a>
 
+
+<!-- CURRENT YEAR -->
 
 <script>
 
@@ -891,6 +520,9 @@ document.getElementById("year").textContent =
 new Date().getFullYear();
 
 </script>
+
+
+<!-- JOB API JAVASCRIPT -->
 
 <script src="app.js"></script>
 
