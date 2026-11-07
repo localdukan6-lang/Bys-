@@ -80,17 +80,49 @@ a {
 .logo {
     width: 76px;
     height: 76px;
-    border: 4px solid #fff;
+    border: 3px solid #f07818;
     border-radius: 50%;
-    display: grid;
-    place-items: center;
-    font-weight: 900;
-    font-size: 24px;
-    background: #fff;
-    color: #f07818;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(145deg, #173d7a, #071d43);
+    color: #fff;
     flex-shrink: 0;
+    position: relative;
+    box-shadow: 0 4px 12px rgba(16, 42, 86, 0.25);
+    overflow: hidden;
 }
 
+.logo::before {
+    content: "★";
+    position: absolute;
+    top: 5px;
+    right: 13px;
+    color: #ff9b19;
+    font-size: 15px;
+}
+
+.logo-text {
+    font-size: 27px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    line-height: 1;
+    color: #fff;
+}
+
+.logo small {
+    font-size: 7px;
+    font-weight: 800;
+    color: #ff9b19;
+    margin-top: 4px;
+    letter-spacing: 0.3px;
+}
+
+.logo:hover {
+    transform: scale(1.05);
+    transition: 0.3s ease;
+}
 
 /* =================================
    NAVIGATION
