@@ -131,6 +131,74 @@ app.use("/api", apiLimiter);
 app.use(express.static(path.join(__dirname, "../public")));
 
 // --------------------------------------------------
+// HELPERS
+// --------------------------------------------------
+
+function safeText(value, maxLength = 1000) {
+
+    if (typeof value !== "string") return "";
+
+    return value.trim().slice(0, maxLength);
+}
+
+// Normalize Indian mobile number to 10 digits.
+function normalizeMobile(value) {
+
+    let mobile = String(value || "").replace(/\D/g, "");
+
+    if (mobile.length === 12 && mobile.startsWith("91")) {
+        mobile = mobile.slice(2);
+    }
+
+    if (mobile.length === 11 && mobile.startsWith("0")) {
+        mobile = mobile.slice(1);
+    }
+
+    return mobile;
+}
+
+function validMobile(value) {
+
+    return /^[6-9]\d{9}$/.test(
+        normalizeMobile(value)
+    );
+}
+
+// Generate a protected fingerprint.
+// Do not change JWT_SECRET without migrating existing fingerprints.
+function mobileFingerprint(mobile) {
+
+    return crypto
+        .createHmac("sha256", process.env.JWT_SECRET)
+        .update(normalizeMobile(mobile))
+        .digest("hex");
+}
+
+function safeEqual(a, b) {
+
+    const first = Buffer.from(String(a || ""));
+    const second = Buffer.from(String(b || ""));
+
+    return first.length === second.length &&
+        crypto.timingSafeEqual(first, second);
+}
+
+function formatJob(row) {
+
+    if (!row) return null;
+
+    return {
+        ...row.data,
+        _id: String(row.id),
+        category: row.category,
+        status: row.status,
+        featured: row.featured,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+    };
+}
+
+// --------------------------------------------------
 // DATABASE TABLES + SAFE MIGRATION
 // --------------------------------------------------
 
@@ -161,26 +229,102 @@ async function initializeDatabase() {
             synced_at TIMESTAMPTZ DEFAULT NULL
         );
 
-        -- Safe migration: preserve existing records.
         ALTER TABLE sync_queue
         ADD COLUMN IF NOT EXISTS synced_at TIMESTAMPTZ DEFAULT NULL;
 
         CREATE INDEX IF NOT EXISTS idx_sync_queue_type_id
         ON sync_queue(record_type, id);
 
-        -- Cleanup index for Workers and Applications.
         CREATE INDEX IF NOT EXISTS idx_sync_queue_retention
         ON sync_queue(created_at)
         WHERE record_type IN ('worker', 'application');
+
+        -- Permanent duplicate protection fingerprints.
+        -- These are not complete form records.
+        CREATE TABLE IF NOT EXISTS form_dedup (
+            record_type VARCHAR(30) NOT NULL,
+            scope_key VARCHAR(100) NOT NULL,
+            mobile_hash CHAR(64) NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+
+            PRIMARY KEY (
+                record_type,
+                scope_key,
+                mobile_hash
+            )
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_form_dedup_created
+        ON form_dedup(created_at);
     `);
 
+    // --------------------------------------------------
+    // MIGRATE EXISTING RECORDS INTO DUPLICATE PROTECTION
+    // Existing Workers and Applications remain untouched.
+    // --------------------------------------------------
+
+    const existingRecords = await pool.query(`
+        SELECT record_type, payload
+        FROM sync_queue
+        WHERE record_type IN ('worker', 'application')
+    `);
+
+    let migratedCount = 0;
+
+    for (const row of existingRecords.rows) {
+
+        const payload = row.payload || {};
+
+        const mobile = normalizeMobile(payload.mobile);
+
+        if (!validMobile(mobile)) {
+            continue;
+        }
+
+        let scopeKey;
+
+        if (row.record_type === "worker") {
+            scopeKey = "worker";
+        } else {
+            scopeKey = String(payload.jobId || "");
+
+            if (!/^\d+$/.test(scopeKey)) {
+                continue;
+            }
+        }
+
+        const fingerprint = mobileFingerprint(mobile);
+
+        const result = await pool.query(`
+            INSERT INTO form_dedup (
+                record_type,
+                scope_key,
+                mobile_hash
+            )
+            VALUES ($1, $2, $3)
+            ON CONFLICT DO NOTHING
+        `, [
+            row.record_type,
+            scopeKey,
+            fingerprint
+        ]);
+
+        migratedCount += result.rowCount;
+    }
+
     console.log("PostgreSQL tables initialized.");
+
+    console.log(
+        `Duplicate protection migration completed. Fingerprints added: ${migratedCount}`
+    );
 }
 
 // --------------------------------------------------
 // CLOUD RETENTION
 // Worker + Application = 6 Months
-// Job Listings are NOT affected.
+// Full form records are deleted.
+// Deduplication fingerprints remain.
+// Jobs are NOT affected.
 // Local SQLite is NOT affected.
 // --------------------------------------------------
 
@@ -227,46 +371,6 @@ async function cleanupExpiredRecords() {
 
         cleanupRunning = false;
     }
-}
-
-// --------------------------------------------------
-// HELPERS
-// --------------------------------------------------
-
-function formatJob(row) {
-
-    if (!row) return null;
-
-    return {
-        ...row.data,
-        _id: String(row.id),
-        category: row.category,
-        status: row.status,
-        featured: row.featured,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at
-    };
-}
-
-function safeText(value, maxLength = 1000) {
-
-    if (typeof value !== "string") return "";
-
-    return value.trim().slice(0, maxLength);
-}
-
-function validMobile(value) {
-
-    return /^[6-9]\d{9}$/.test(String(value || ""));
-}
-
-function safeEqual(a, b) {
-
-    const first = Buffer.from(String(a || ""));
-    const second = Buffer.from(String(b || ""));
-
-    return first.length === second.length &&
-        crypto.timingSafeEqual(first, second);
 }
 
 // --------------------------------------------------
@@ -476,7 +580,9 @@ app.get(
 
 // --------------------------------------------------
 // JOB APPLICATION
-// Application stays in Cloud for 6 months.
+// One mobile = One application per Job.
+// Same mobile can apply to other Jobs.
+// Cloud full record retention = 6 Months.
 // --------------------------------------------------
 
 app.post(
@@ -490,37 +596,13 @@ app.post(
             });
         }
 
-        const jobResult = await pool.query(
-            "SELECT * FROM jobs WHERE id = $1",
-            [req.params.id]
-        );
-
-        if (!jobResult.rows.length) {
-            return res.status(404).json({
-                message: "Job not found."
-            });
-        }
-
-        const job = formatJob(jobResult.rows[0]);
-
-        if ([
-            "Application Closed",
-            "Result Declared"
-        ].includes(job.status)) {
-
-            return res.status(400).json({
-                message: "Applications are closed for this job."
-            });
-        }
-
         const applicantName = safeText(
-            req.body.applicantName,
+            req.body?.applicantName,
             100
         );
 
-        const mobile = safeText(
-            req.body.mobile,
-            15
+        const mobile = normalizeMobile(
+            req.body?.mobile
         );
 
         if (!applicantName || !validMobile(mobile)) {
@@ -530,59 +612,145 @@ app.post(
             });
         }
 
-        const applicationId =
-            "BYS" +
-            Date.now().toString().slice(-8) +
-            crypto.randomBytes(3).toString("hex").toUpperCase();
+        const client = await pool.connect();
 
-        const payload = {
+        try {
 
-            applicationId,
+            await client.query("BEGIN");
 
-            jobId: job._id,
+            const jobResult = await client.query(
+                "SELECT * FROM jobs WHERE id = $1",
+                [req.params.id]
+            );
 
-            jobTitle: job.title || "",
+            if (!jobResult.rows.length) {
 
-            organization: job.organization || "",
+                await client.query("ROLLBACK");
 
-            applicantName,
+                return res.status(404).json({
+                    message: "Job not found."
+                });
+            }
 
-            mobile,
+            const job = formatJob(jobResult.rows[0]);
 
-            email: safeText(
-                req.body.email,
-                150
-            ).toLowerCase(),
+            if ([
+                "Application Closed",
+                "Result Declared"
+            ].includes(job.status)) {
 
-            qualification: safeText(
-                req.body.qualification,
-                100
-            ),
+                await client.query("ROLLBACK");
 
-            message: safeText(
-                req.body.message,
-                1000
-            ),
+                return res.status(400).json({
+                    message: "Applications are closed for this job."
+                });
+            }
 
-            status: "Pending"
-        };
+            const fingerprint = mobileFingerprint(mobile);
 
-        await pool.query(
-            `INSERT INTO sync_queue (record_type, payload)
-             VALUES ('application', $1::jsonb)`,
-            [JSON.stringify(payload)]
-        );
+            const scopeKey = String(job._id);
 
-        res.status(201).json({
-            message: "Application submitted successfully.",
-            applicationId
-        });
+            // Serialize simultaneous submissions for same Job + Mobile.
+            await client.query(
+                `SELECT pg_advisory_xact_lock(
+                    hashtextextended($1, 0)
+                )`,
+                [`application:${scopeKey}:${fingerprint}`]
+            );
+
+            // Permanent duplicate check.
+            const dedupResult = await client.query(`
+                INSERT INTO form_dedup (
+                    record_type,
+                    scope_key,
+                    mobile_hash
+                )
+                VALUES ('application', $1, $2)
+                ON CONFLICT DO NOTHING
+                RETURNING mobile_hash
+            `, [
+                scopeKey,
+                fingerprint
+            ]);
+
+            if (dedupResult.rowCount === 0) {
+
+                await client.query("ROLLBACK");
+
+                return res.status(409).json({
+                    duplicate: true,
+                    message: "आप इस Job के लिए पहले ही आवेदन कर चुके हैं। दोबारा आवेदन नहीं किया जा सकता।"
+                });
+            }
+
+            const applicationId =
+                "BYS" +
+                Date.now().toString().slice(-8) +
+                crypto.randomBytes(3).toString("hex").toUpperCase();
+
+            const payload = {
+
+                applicationId,
+
+                jobId: job._id,
+
+                jobTitle: job.title || "",
+
+                organization: job.organization || "",
+
+                applicantName,
+
+                mobile,
+
+                email: safeText(
+                    req.body?.email,
+                    150
+                ).toLowerCase(),
+
+                qualification: safeText(
+                    req.body?.qualification,
+                    100
+                ),
+
+                message: safeText(
+                    req.body?.message,
+                    1000
+                ),
+
+                status: "Pending"
+            };
+
+            await client.query(`
+                INSERT INTO sync_queue (record_type, payload)
+                VALUES ('application', $1::jsonb)
+            `, [
+                JSON.stringify(payload)
+            ]);
+
+            await client.query("COMMIT");
+
+            res.status(201).json({
+                message: "Application submitted successfully.",
+                applicationId
+            });
+
+        } catch (error) {
+
+            await client.query("ROLLBACK");
+
+            throw error;
+
+        } finally {
+
+            client.release();
+        }
     })
 );
 
 // --------------------------------------------------
 // WORKER REGISTRATION
-// Worker stays in Cloud for 6 months.
+// One mobile = One Worker Registration permanently.
+// Cloud full record retention = 6 Months.
 // --------------------------------------------------
 
 app.post(
@@ -604,27 +772,27 @@ app.post(
                 Date.now().toString().slice(-8) +
                 crypto.randomBytes(3).toString("hex").toUpperCase(),
 
-            name: safeText(req.body.name, 100),
+            name: safeText(req.body?.name, 100),
 
-            mobile: safeText(req.body.mobile, 10),
+            mobile: normalizeMobile(req.body?.mobile),
 
-            whatsapp: safeText(req.body.whatsapp, 10),
+            whatsapp: normalizeMobile(req.body?.whatsapp),
 
-            email: safeText(req.body.email, 150).toLowerCase(),
+            email: safeText(req.body?.email, 150).toLowerCase(),
 
-            state: safeText(req.body.state, 100),
+            state: safeText(req.body?.state, 100),
 
-            district: safeText(req.body.district, 100),
+            district: safeText(req.body?.district, 100),
 
-            address: safeText(req.body.address, 500),
+            address: safeText(req.body?.address, 500),
 
-            qualification: safeText(req.body.qualification, 100),
+            qualification: safeText(req.body?.qualification, 100),
 
-            experience: safeText(req.body.experience, 100),
+            experience: safeText(req.body?.experience, 100),
 
-            workType: safeText(req.body.workType, 100),
+            workType: safeText(req.body?.workType, 100),
 
-            message: safeText(req.body.message, 1000),
+            message: safeText(req.body?.message, 1000),
 
             status: "Pending"
         };
@@ -656,16 +824,70 @@ app.post(
             });
         }
 
-        await pool.query(
-            `INSERT INTO sync_queue (record_type, payload)
-             VALUES ('worker', $1::jsonb)`,
-            [JSON.stringify(data)]
-        );
+        const client = await pool.connect();
 
-        res.status(201).json({
-            message: "Worker registration submitted successfully.",
-            registrationId: data.registrationId
-        });
+        try {
+
+            await client.query("BEGIN");
+
+            const fingerprint = mobileFingerprint(data.mobile);
+
+            // Serialize simultaneous registrations for same mobile.
+            await client.query(
+                `SELECT pg_advisory_xact_lock(
+                    hashtextextended($1, 0)
+                )`,
+                [`worker:${fingerprint}`]
+            );
+
+            // Permanent duplicate check.
+            const dedupResult = await client.query(`
+                INSERT INTO form_dedup (
+                    record_type,
+                    scope_key,
+                    mobile_hash
+                )
+                VALUES ('worker', 'worker', $1)
+                ON CONFLICT DO NOTHING
+                RETURNING mobile_hash
+            `, [
+                fingerprint
+            ]);
+
+            if (dedupResult.rowCount === 0) {
+
+                await client.query("ROLLBACK");
+
+                return res.status(409).json({
+                    duplicate: true,
+                    message: "आपका Worker Registration पहले से मौजूद है। एक मोबाइल नंबर से केवल एक Registration किया जा सकता है।"
+                });
+            }
+
+            await client.query(`
+                INSERT INTO sync_queue (record_type, payload)
+                VALUES ('worker', $1::jsonb)
+            `, [
+                JSON.stringify(data)
+            ]);
+
+            await client.query("COMMIT");
+
+            res.status(201).json({
+                message: "Worker registration submitted successfully.",
+                registrationId: data.registrationId
+            });
+
+        } catch (error) {
+
+            await client.query("ROLLBACK");
+
+            throw error;
+
+        } finally {
+
+            client.release();
+        }
     })
 );
 
@@ -825,7 +1047,6 @@ app.delete(
 
 // --------------------------------------------------
 // ADMIN: APPLICATIONS
-// Shows applications retained in Cloud.
 // --------------------------------------------------
 
 app.get(
@@ -853,7 +1074,6 @@ app.get(
 
 // --------------------------------------------------
 // ADMIN: WORKER REGISTRATIONS
-// Shows workers retained in Cloud.
 // --------------------------------------------------
 
 app.get(
@@ -881,8 +1101,7 @@ app.get(
 
 // --------------------------------------------------
 // OFFICE: FETCH QUEUE RECORDS
-// Both Worker and Application are synced only once.
-// Already synced records are not sent again.
+// Already synced Workers and Applications are not resent.
 // --------------------------------------------------
 
 app.get(
@@ -923,10 +1142,7 @@ app.get(
 
 // --------------------------------------------------
 // OFFICE: ACKNOWLEDGE SAVED RECORDS
-//
-// Worker      = Mark synced, DO NOT DELETE.
-// Application = Mark synced, DO NOT DELETE.
-// Both remain in Cloud for 6 months.
+// Worker + Application = Mark Synced, Never Delete.
 // --------------------------------------------------
 
 app.post(
@@ -960,8 +1176,6 @@ app.post(
 
             await client.query("BEGIN");
 
-            // Mark BOTH workers and applications as synced.
-            // Never delete these records on ACK.
             const result = await client.query(`
                 UPDATE sync_queue
                 SET synced_at = COALESCE(synced_at, NOW())
@@ -1034,6 +1248,7 @@ app.use((err, req, res, next) => {
 
     if (err.code === "23505") {
         return res.status(409).json({
+            duplicate: true,
             message: "Duplicate record."
         });
     }
@@ -1065,7 +1280,7 @@ async function startServer() {
 
         await initializeDatabase();
 
-        // Cleanup expired Workers and Applications on startup.
+        // Cleanup expired full records on startup.
         await cleanupExpiredRecords();
 
         app.listen(PORT, () => {
@@ -1080,6 +1295,14 @@ async function startServer() {
 
             console.log(
                 "Application Cloud Retention: 6 Months"
+            );
+
+            console.log(
+                "Worker Duplicate Protection: Permanent"
+            );
+
+            console.log(
+                "Application Duplicate Protection: Per Job, Permanent"
             );
 
             console.log(
