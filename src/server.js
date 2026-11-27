@@ -14,6 +14,16 @@ const { Pool } = require("pg");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// --------------------------------------------------
+// RENDER PROXY CONFIGURATION
+// --------------------------------------------------
+
+app.set("trust proxy", 1);
+
+// --------------------------------------------------
+// REQUIRED ENVIRONMENT VARIABLES
+// --------------------------------------------------
+
 const requiredEnv = [
     "DATABASE_URL",
     "JWT_SECRET",
@@ -28,21 +38,33 @@ for (const key of requiredEnv) {
     }
 }
 
-// PostgreSQL connection
+// --------------------------------------------------
+// POSTGRESQL CONNECTION
+// --------------------------------------------------
+
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
+
     ssl: process.env.PGSSL === "true"
         ? { rejectUnauthorized: false }
         : undefined,
+
     max: 10,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000
 });
 
+pool.on("error", (error) => {
+    console.error("PostgreSQL Pool Error:", error.message);
+});
+
+// --------------------------------------------------
+// ASYNC HANDLER
+// --------------------------------------------------
+
 const asyncHandler = fn =>
     (req, res, next) =>
         Promise.resolve(fn(req, res, next)).catch(next);
-
 
 // --------------------------------------------------
 // MIDDLEWARE
@@ -52,34 +74,64 @@ app.use(helmet({
     contentSecurityPolicy: false
 }));
 
-const allowedOrigins = (process.env.FRONTEND_ORIGIN || "")
+// Allowed Website Origins
+const defaultOrigins = [
+    "https://bys-public.vercel.app",
+    "https://www.bysassociatejob.com",
+    "https://bysassociatejob.com"
+];
+
+const environmentOrigins = (process.env.FRONTEND_ORIGIN || "")
     .split(",")
     .map(origin => origin.trim())
     .filter(Boolean);
 
+const allowedOrigins = [
+    ...new Set([
+        ...defaultOrigins,
+        ...environmentOrigins
+    ].map(origin => origin.replace(/\/$/, "")))
+];
+
+console.log("Allowed Website Origins:", allowedOrigins);
+
 app.use(cors({
     origin(origin, callback) {
-        if (!origin || allowedOrigins.length === 0 ||
-            allowedOrigins.includes(origin)) {
+
+        // Allow requests without browser Origin
+        if (!origin) {
             return callback(null, true);
         }
 
+        const normalizedOrigin = origin.replace(/\/$/, "");
+
+        if (allowedOrigins.includes(normalizedOrigin)) {
+            return callback(null, true);
+        }
+
+        console.log("Blocked Website Origin:", origin);
+
         return callback(new Error("Origin not allowed by CORS"));
-    }
+    },
+
+    credentials: true,
+    optionsSuccessStatus: 204
 }));
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/api", rateLimit({
+// Global API Rate Limiter
+const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 300,
     standardHeaders: true,
     legacyHeaders: false
-}));
+});
+
+app.use("/api", apiLimiter);
 
 app.use(express.static(path.join(__dirname, "../public")));
-
 
 // --------------------------------------------------
 // DATABASE TABLES
@@ -118,12 +170,12 @@ async function initializeDatabase() {
     console.log("PostgreSQL tables initialized.");
 }
 
-
 // --------------------------------------------------
 // HELPERS
 // --------------------------------------------------
 
 function formatJob(row) {
+
     if (!row) return null;
 
     return {
@@ -138,22 +190,25 @@ function formatJob(row) {
 }
 
 function safeText(value, maxLength = 1000) {
+
     if (typeof value !== "string") return "";
+
     return value.trim().slice(0, maxLength);
 }
 
 function validMobile(value) {
+
     return /^[6-9]\d{9}$/.test(String(value || ""));
 }
 
 function safeEqual(a, b) {
+
     const first = Buffer.from(String(a || ""));
     const second = Buffer.from(String(b || ""));
 
     return first.length === second.length &&
         crypto.timingSafeEqual(first, second);
 }
-
 
 // --------------------------------------------------
 // ADMIN AUTHENTICATION
@@ -171,22 +226,27 @@ function adminAuth(req, res, next) {
     }
 
     try {
-        const payload = jwt.verify(token, process.env.JWT_SECRET);
+
+        const payload = jwt.verify(
+            token,
+            process.env.JWT_SECRET
+        );
 
         if (payload.role !== "admin") {
             throw new Error("Invalid role");
         }
 
         req.admin = payload;
+
         next();
 
     } catch {
+
         return res.status(401).json({
             message: "Session expired. Please login again."
         });
     }
 }
-
 
 // --------------------------------------------------
 // OFFICE AUTHENTICATION
@@ -205,24 +265,30 @@ function officeAuth(req, res, next) {
     next();
 }
 
-
 // --------------------------------------------------
 // ADMIN LOGIN
 // --------------------------------------------------
 
 app.post(
     "/api/admin/login",
+
     rateLimit({
         windowMs: 15 * 60 * 1000,
-        limit: 10
+        limit: 10,
+        standardHeaders: true,
+        legacyHeaders: false
     }),
+
     asyncHandler(async (req, res) => {
 
-        const { username, password } = req.body;
+        const { username, password } = req.body || {};
 
         const expectedUser = process.env.ADMIN_USERNAME || "admin";
 
-        const userMatches = safeEqual(username, expectedUser);
+        const userMatches = safeEqual(
+            username,
+            expectedUser
+        );
 
         const passwordMatches =
             typeof password === "string" &&
@@ -255,82 +321,99 @@ app.post(
     })
 );
 
-
 // --------------------------------------------------
 // PUBLIC JOB LIST
 // --------------------------------------------------
 
-app.get("/api/jobs", asyncHandler(async (req, res) => {
+app.get(
+    "/api/jobs",
 
-    const conditions = [];
-    const values = [];
+    asyncHandler(async (req, res) => {
 
-    if (["Government", "Private"].includes(req.query.category)) {
-        values.push(req.query.category);
-        conditions.push(`category = $${values.length}`);
-    }
+        const conditions = [];
+        const values = [];
 
-    if (req.query.status) {
-        values.push(safeText(req.query.status, 60));
-        conditions.push(`status = $${values.length}`);
-    }
+        if (["Government", "Private"].includes(req.query.category)) {
 
-    if (req.query.q) {
+            values.push(req.query.category);
 
-        values.push(`%${safeText(req.query.q, 100)}%`);
+            conditions.push(
+                `category = $${values.length}`
+            );
+        }
 
-        const index = values.length;
+        if (req.query.status) {
 
-        conditions.push(`
-            (
-                data->>'title' ILIKE $${index}
-                OR data->>'organization' ILIKE $${index}
-                OR data->>'qualification' ILIKE $${index}
-            )
-        `);
-    }
+            values.push(
+                safeText(req.query.status, 60)
+            );
 
-    const where = conditions.length
-        ? `WHERE ${conditions.join(" AND ")}`
-        : "";
+            conditions.push(
+                `status = $${values.length}`
+            );
+        }
 
-    const result = await pool.query(`
-        SELECT *
-        FROM jobs
-        ${where}
-        ORDER BY featured DESC, created_at DESC
-    `, values);
+        if (req.query.q) {
 
-    res.json(result.rows.map(formatJob));
-}));
+            values.push(
+                `%${safeText(req.query.q, 100)}%`
+            );
 
+            const index = values.length;
+
+            conditions.push(`
+                (
+                    data->>'title' ILIKE $${index}
+                    OR data->>'organization' ILIKE $${index}
+                    OR data->>'qualification' ILIKE $${index}
+                )
+            `);
+        }
+
+        const where = conditions.length
+            ? `WHERE ${conditions.join(" AND ")}`
+            : "";
+
+        const result = await pool.query(`
+            SELECT *
+            FROM jobs
+            ${where}
+            ORDER BY featured DESC, created_at DESC
+        `, values);
+
+        res.json(result.rows.map(formatJob));
+    })
+);
 
 // --------------------------------------------------
 // SINGLE JOB
 // --------------------------------------------------
 
-app.get("/api/jobs/:id", asyncHandler(async (req, res) => {
+app.get(
+    "/api/jobs/:id",
 
-    if (!/^\d+$/.test(req.params.id)) {
-        return res.status(400).json({
-            message: "Invalid job ID."
-        });
-    }
+    asyncHandler(async (req, res) => {
 
-    const result = await pool.query(
-        "SELECT * FROM jobs WHERE id = $1",
-        [req.params.id]
-    );
+        if (!/^\d+$/.test(req.params.id)) {
+            return res.status(400).json({
+                message: "Invalid job ID."
+            });
+        }
 
-    if (!result.rows.length) {
-        return res.status(404).json({
-            message: "Job not found."
-        });
-    }
+        const result = await pool.query(
+            "SELECT * FROM jobs WHERE id = $1",
+            [req.params.id]
+        );
 
-    res.json(formatJob(result.rows[0]));
-}));
+        if (!result.rows.length) {
+            return res.status(404).json({
+                message: "Job not found."
+            });
+        }
 
+        res.json(formatJob(result.rows[0]));
+    })
+);
 
 // --------------------------------------------------
 // JOB APPLICATION
@@ -338,6 +421,7 @@ app.get("/api/jobs/:id", asyncHandler(async (req, res) => {
 
 app.post(
     "/api/jobs/:id/apply",
+
     asyncHandler(async (req, res) => {
 
         if (!/^\d+$/.test(req.params.id)) {
@@ -363,15 +447,24 @@ app.post(
             "Application Closed",
             "Result Declared"
         ].includes(job.status)) {
+
             return res.status(400).json({
                 message: "Applications are closed for this job."
             });
         }
 
-        const applicantName = safeText(req.body.applicantName, 100);
-        const mobile = safeText(req.body.mobile, 15);
+        const applicantName = safeText(
+            req.body.applicantName,
+            100
+        );
+
+        const mobile = safeText(
+            req.body.mobile,
+            15
+        );
 
         if (!applicantName || !validMobile(mobile)) {
+
             return res.status(400).json({
                 message: "Please enter your name and valid 10 digit mobile number."
             });
@@ -383,15 +476,34 @@ app.post(
             crypto.randomBytes(3).toString("hex").toUpperCase();
 
         const payload = {
+
             applicationId,
+
             jobId: job._id,
+
             jobTitle: job.title || "",
+
             organization: job.organization || "",
+
             applicantName,
+
             mobile,
-            email: safeText(req.body.email, 150).toLowerCase(),
-            qualification: safeText(req.body.qualification, 100),
-            message: safeText(req.body.message, 1000),
+
+            email: safeText(
+                req.body.email,
+                150
+            ).toLowerCase(),
+
+            qualification: safeText(
+                req.body.qualification,
+                100
+            ),
+
+            message: safeText(
+                req.body.message,
+                1000
+            ),
+
             status: "Pending"
         };
 
@@ -408,36 +520,51 @@ app.post(
     })
 );
 
-
 // --------------------------------------------------
 // WORKER REGISTRATION
 // --------------------------------------------------
 
 app.post(
     "/api/workers/register",
+
     rateLimit({
         windowMs: 15 * 60 * 1000,
-        limit: 15
+        limit: 15,
+        standardHeaders: true,
+        legacyHeaders: false
     }),
+
     asyncHandler(async (req, res) => {
 
         const data = {
+
             registrationId:
                 "WRK" +
                 Date.now().toString().slice(-8) +
                 crypto.randomBytes(3).toString("hex").toUpperCase(),
 
             name: safeText(req.body.name, 100),
+
             mobile: safeText(req.body.mobile, 10),
+
             whatsapp: safeText(req.body.whatsapp, 10),
+
             email: safeText(req.body.email, 150).toLowerCase(),
+
             state: safeText(req.body.state, 100),
+
             district: safeText(req.body.district, 100),
+
             address: safeText(req.body.address, 500),
+
             qualification: safeText(req.body.qualification, 100),
+
             experience: safeText(req.body.experience, 100),
+
             workType: safeText(req.body.workType, 100),
+
             message: safeText(req.body.message, 1000),
+
             status: "Pending"
         };
 
@@ -452,6 +579,7 @@ app.post(
             !data.experience ||
             !data.workType
         ) {
+
             return res.status(400).json({
                 message: "Please enter all required details correctly."
             });
@@ -461,6 +589,7 @@ app.post(
             data.email &&
             !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)
         ) {
+
             return res.status(400).json({
                 message: "Please enter a valid email address."
             });
@@ -479,14 +608,15 @@ app.post(
     })
 );
 
-
 // --------------------------------------------------
 // ADMIN: JOB MANAGEMENT
 // --------------------------------------------------
 
 app.get(
     "/api/admin/jobs",
+
     adminAuth,
+
     asyncHandler(async (req, res) => {
 
         const result = await pool.query(
@@ -497,10 +627,12 @@ app.get(
     })
 );
 
-
+// ADD JOB
 app.post(
     "/api/admin/jobs",
+
     adminAuth,
+
     asyncHandler(async (req, res) => {
 
         const data = req.body || {};
@@ -511,7 +643,10 @@ app.post(
             });
         }
 
-        const category = ["Government", "Private"].includes(data.category)
+        const category = [
+            "Government",
+            "Private"
+        ].includes(data.category)
             ? data.category
             : "Private";
 
@@ -531,14 +666,18 @@ app.post(
             featured
         ]);
 
-        res.status(201).json(formatJob(result.rows[0]));
+        res.status(201).json(
+            formatJob(result.rows[0])
+        );
     })
 );
 
-
+// UPDATE JOB
 app.put(
     "/api/admin/jobs/:id",
+
     adminAuth,
+
     asyncHandler(async (req, res) => {
 
         if (!/^\d+$/.test(req.params.id)) {
@@ -555,7 +694,10 @@ app.put(
             });
         }
 
-        const category = ["Government", "Private"].includes(data.category)
+        const category = [
+            "Government",
+            "Private"
+        ].includes(data.category)
             ? data.category
             : "Private";
 
@@ -589,10 +731,12 @@ app.put(
     })
 );
 
-
+// DELETE JOB
 app.delete(
     "/api/admin/jobs/:id",
+
     adminAuth,
+
     asyncHandler(async (req, res) => {
 
         if (!/^\d+$/.test(req.params.id)) {
@@ -601,7 +745,7 @@ app.delete(
             });
         }
 
-        // Do not delete applications from the sync queue.
+        // Existing sync queue records are not deleted.
         const result = await pool.query(
             "DELETE FROM jobs WHERE id = $1 RETURNING id",
             [req.params.id]
@@ -619,14 +763,15 @@ app.delete(
     })
 );
 
-
 // --------------------------------------------------
 // ADMIN: PENDING APPLICATIONS
 // --------------------------------------------------
 
 app.get(
     "/api/admin/applications",
+
     adminAuth,
+
     asyncHandler(async (req, res) => {
 
         const result = await pool.query(`
@@ -644,14 +789,15 @@ app.get(
     })
 );
 
-
 // --------------------------------------------------
 // ADMIN: PENDING WORKER REGISTRATIONS
 // --------------------------------------------------
 
 app.get(
     "/api/admin/workers",
+
     adminAuth,
+
     asyncHandler(async (req, res) => {
 
         const result = await pool.query(`
@@ -669,14 +815,15 @@ app.get(
     })
 );
 
-
 // --------------------------------------------------
 // OFFICE: FETCH QUEUE RECORDS
 // --------------------------------------------------
 
 app.get(
     "/api/office/sync",
+
     officeAuth,
+
     asyncHandler(async (req, res) => {
 
         const limit = Math.min(
@@ -702,17 +849,18 @@ app.get(
     })
 );
 
-
 // --------------------------------------------------
 // OFFICE: ACKNOWLEDGE SAVED RECORDS
 // --------------------------------------------------
 
 app.post(
     "/api/office/ack",
+
     officeAuth,
+
     asyncHandler(async (req, res) => {
 
-        const ids = req.body.ids;
+        const ids = req.body?.ids;
 
         if (
             !Array.isArray(ids) ||
@@ -720,12 +868,15 @@ app.post(
             ids.length > 500 ||
             !ids.every(id => /^\d+$/.test(String(id)))
         ) {
+
             return res.status(400).json({
                 message: "Please provide valid queue IDs."
             });
         }
 
-        const uniqueIds = [...new Set(ids.map(String))];
+        const uniqueIds = [
+            ...new Set(ids.map(String))
+        ];
 
         const result = await pool.query(`
             DELETE FROM sync_queue
@@ -740,22 +891,24 @@ app.post(
     })
 );
 
-
 // --------------------------------------------------
 // HEALTH CHECK
 // --------------------------------------------------
 
-app.get("/api/health", asyncHandler(async (req, res) => {
+app.get(
+    "/api/health",
 
-    await pool.query("SELECT 1");
+    asyncHandler(async (req, res) => {
 
-    res.json({
-        ok: true,
-        database: "PostgreSQL",
-        name: "BYS ASSOCIATE JOB API"
-    });
-}));
+        await pool.query("SELECT 1");
 
+        res.json({
+            ok: true,
+            database: "PostgreSQL",
+            name: "BYS ASSOCIATE JOB API"
+        });
+    })
+);
 
 // --------------------------------------------------
 // ERROR HANDLER
@@ -777,11 +930,14 @@ app.use((err, req, res, next) => {
         });
     }
 
+    if (res.headersSent) {
+        return next(err);
+    }
+
     res.status(500).json({
         message: "Server error. Please try again later."
     });
 });
-
 
 // --------------------------------------------------
 // START SERVER
@@ -792,17 +948,23 @@ async function startServer() {
     try {
 
         await pool.query("SELECT NOW()");
+
         await initializeDatabase();
 
         app.listen(PORT, () => {
-            console.log(`BYS ASSOCIATE JOB running on port ${PORT}`);
+            console.log(
+                `BYS ASSOCIATE JOB running on port ${PORT}`
+            );
         });
 
     } catch (error) {
 
-        console.error("Server startup failed:", error.message);
-        process.exit(1);
+        console.error(
+            "Server startup failed:",
+            error.message
+        );
 
+        process.exit(1);
     }
 }
 
