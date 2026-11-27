@@ -1,27 +1,232 @@
+
 const API = "https://bys-9pma.onrender.com";
-const box=document.getElementById("jobDetails");
-document.getElementById("year").textContent=new Date().getFullYear();
-const id=new URLSearchParams(location.search).get("id");
-const esc=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-function row(label,value){return value?`<tr><th>${label}</th><td>${esc(value)}</td></tr>`:"";}
-function section(title,content){return content?`<section class="detail-section"><h3>${title}</h3><div class="content">${esc(content)}</div></section>`:"";}
-function link(label,url){if(!url)return"";try{const u=new URL(url);if(!["http:","https:"].includes(u.protocol))return"";return `<a href="${esc(u.href)}" target="_blank" rel="noopener noreferrer">${label}</a>`;}catch{return"";}}
-async function load(){
- if(!id){box.innerHTML="<h2>Job not selected</h2><p>Please return to the home page and select a job.</p>";return;}
- try{
-  const r=await fetch(`${API}/api/jobs/${encodeURIComponent(id)}`);const j=await r.json();if(!r.ok)throw new Error(j.message);
-  const closed=["Application Closed","Result Declared"].includes(j.status);
-  box.innerHTML=`<h2>${esc(j.title)}</h2><p><b>${esc(j.organization)}</b> &nbsp; <span class="badge">${esc(j.category)}</span><span class="badge">${esc(j.status)}</span></p>
-  <table class="detail-table">${row("Organization",j.organization)}${row("Category",j.category)}${row("Location",j.location)}${row("Total Vacancies",j.vacancies)}${row("Qualification",j.qualification)}${row("Age Limit",j.ageLimit)}${row("Salary",j.salary)}${row("Application Fee",j.applicationFee)}${row("Selection Process",j.selectionProcess)}${row("Application Start",j.startDate)}${row("Last Date",j.lastDate)}${row("Exam Date",j.examDate)}${row("Current Status",j.status)}</table>
-  ${section("Job Description",j.description)}${section("How to Apply",j.howToApply)}
-  <section class="detail-section"><h3>Important Links</h3><div class="important-links">${link("Apply Online",j.applyLink)}${link("Download Notification",j.notificationLink)}${link("Official Website",j.officialLink)}${link("Syllabus",j.syllabusLink)}</div></section>
-  ${closed?'<p class="message">Applications are currently closed for this job.</p>':`<section class="apply-box"><h3>Submit Your Interest / Application</h3><p>Fill this form to register your interest with BYS ASSOCIATE JOB. If the employer has a separate official application link, use the Apply Online button above as well.</p><form id="applyForm"><label>Full Name *<input name="applicantName" required maxlength="100"></label><label>Mobile Number *<input name="mobile" required inputmode="tel" maxlength="15"></label><label>Email<input name="email" type="email"></label><label>Qualification<input name="qualification"></label><label class="wide">Message<textarea name="message" rows="3"></textarea></label><div class="wide"><button class="primary">Submit Application</button></div></form><p id="applyMessage" class="message"></p></section>`}`;
-  const form=document.getElementById("applyForm");if(form)form.addEventListener("submit",submitApplication);
- }catch(e){box.innerHTML=`<h2>Unable to load job</h2><p>${esc(e.message||"Please try again later.")}</p>`;}
+
+const form = document.getElementById("workerForm");
+const submitBtn = document.getElementById("submitBtn");
+const formMessage = document.getElementById("formMessage");
+
+document.getElementById("year").textContent =
+    new Date().getFullYear();
+
+// --------------------------------------------------
+// MESSAGE
+// --------------------------------------------------
+
+function showMessage(message, type) {
+
+    formMessage.textContent = message;
+    formMessage.className = type;
+    formMessage.style.display = message ? "block" : "none";
 }
-async function submitApplication(e){
- e.preventDefault();const form=e.currentTarget;const msg=document.getElementById("applyMessage");const data=Object.fromEntries(new FormData(form).entries());
- try{const r=await fetch(`${API}/api/jobs/${encodeURIComponent(id)}/apply`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});const out=await r.json();if(!r.ok)throw new Error(out.message);msg.textContent=`${out.message} Your Application ID: ${out.applicationId}`;form.reset();}
- catch(err){msg.textContent=err.message||"Submission failed.";}
+
+// --------------------------------------------------
+// MOBILE NORMALIZATION
+// --------------------------------------------------
+
+function cleanNumber(value) {
+
+    let mobile = String(value || "").replace(/\D/g, "");
+
+    if (mobile.length === 12 && mobile.startsWith("91")) {
+        mobile = mobile.slice(2);
+    }
+
+    if (mobile.length === 11 && mobile.startsWith("0")) {
+        mobile = mobile.slice(1);
+    }
+
+    return mobile;
 }
-load();
+
+function validMobile(value) {
+    return /^[6-9]\d{9}$/.test(value);
+}
+
+// --------------------------------------------------
+// SUBMIT PROTECTION
+// --------------------------------------------------
+
+let isSubmitting = false;
+
+form.addEventListener("submit", async function (e) {
+
+    e.preventDefault();
+
+    if (isSubmitting) {
+        return;
+    }
+
+    showMessage("", "");
+
+    const mobile = cleanNumber(
+        document.getElementById("mobile").value
+    );
+
+    const whatsapp = cleanNumber(
+        document.getElementById("whatsapp").value
+    );
+
+    // Validate mobile
+    if (!validMobile(mobile)) {
+
+        showMessage(
+            "कृपया सही 10 अंकों का मोबाइल नंबर दर्ज करें।",
+            "error"
+        );
+
+        return;
+    }
+
+    // Validate WhatsApp
+    if (whatsapp && !validMobile(whatsapp)) {
+
+        showMessage(
+            "कृपया सही WhatsApp नंबर दर्ज करें।",
+            "error"
+        );
+
+        return;
+    }
+
+    // Form data
+    const data = {
+
+        name: document.getElementById("name").value.trim(),
+
+        mobile: mobile,
+
+        whatsapp: whatsapp,
+
+        email: document.getElementById("email").value.trim(),
+
+        state: document.getElementById("state").value.trim(),
+
+        district: document.getElementById("district").value.trim(),
+
+        address: document.getElementById("address").value.trim(),
+
+        qualification: document.getElementById("qualification").value,
+
+        experience: document.getElementById("experience").value,
+
+        workType: document.getElementById("workType").value,
+
+        message: document.getElementById("message").value.trim()
+    };
+
+    // Required fields
+    if (
+        !data.name ||
+        !data.state ||
+        !data.district ||
+        !data.address ||
+        !data.qualification ||
+        !data.experience ||
+        !data.workType
+    ) {
+
+        showMessage(
+            "कृपया सभी जरूरी जानकारी भरें।",
+            "error"
+        );
+
+        return;
+    }
+
+    // Consent
+    if (!document.getElementById("consent").checked) {
+
+        showMessage(
+            "कृपया फॉर्म जमा करने से पहले पुष्टि स्वीकार करें।",
+            "error"
+        );
+
+        return;
+    }
+
+    // Disable repeated clicks
+    isSubmitting = true;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Submitting...";
+
+    try {
+
+        const response = await fetch(
+            `${API}/api/workers/register`,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify(data)
+            }
+        );
+
+        let result;
+
+        try {
+            result = await response.json();
+        } catch {
+            result = {};
+        }
+
+        // --------------------------------------------------
+        // DUPLICATE REGISTRATION
+        // HTTP 409
+        // --------------------------------------------------
+
+        if (response.status === 409) {
+
+            showMessage(
+                result.message ||
+                "आपका Worker Registration पहले से मौजूद है। एक मोबाइल नंबर से केवल एक Registration किया जा सकता है।",
+                "error"
+            );
+
+            return;
+        }
+
+        // Other errors
+        if (!response.ok) {
+
+            showMessage(
+                result.message ||
+                "Registration जमा नहीं हो पाया। कृपया दोबारा प्रयास करें।",
+                "error"
+            );
+
+            return;
+        }
+
+        // Success
+        showMessage(
+            `Registration सफलतापूर्वक जमा हो गया। Registration ID: ${result.registrationId || ""}`,
+            "success"
+        );
+
+        form.reset();
+
+    } catch (error) {
+
+        console.error(
+            "Worker Registration Error:",
+            error
+        );
+
+        showMessage(
+            "Server से संपर्क नहीं हो पाया। कृपया थोड़ी देर बाद प्रयास करें।",
+            "error"
+        );
+
+    } finally {
+
+        isSubmitting = false;
+
+        submitBtn.disabled = false;
+
+        submitBtn.textContent = "Submit Registration";
+    }
+});
