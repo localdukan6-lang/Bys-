@@ -161,62 +161,71 @@ async function initializeDatabase() {
             synced_at TIMESTAMPTZ DEFAULT NULL
         );
 
-        -- Existing database migration.
-        -- Existing records are preserved.
+        -- Safe migration: preserve existing records.
         ALTER TABLE sync_queue
         ADD COLUMN IF NOT EXISTS synced_at TIMESTAMPTZ DEFAULT NULL;
 
         CREATE INDEX IF NOT EXISTS idx_sync_queue_type_id
         ON sync_queue(record_type, id);
 
-        CREATE INDEX IF NOT EXISTS idx_sync_queue_worker_cleanup
+        -- Cleanup index for Workers and Applications.
+        CREATE INDEX IF NOT EXISTS idx_sync_queue_retention
         ON sync_queue(created_at)
-        WHERE record_type = 'worker';
+        WHERE record_type IN ('worker', 'application');
     `);
 
     console.log("PostgreSQL tables initialized.");
 }
 
 // --------------------------------------------------
-// WORKER CLOUD RETENTION
-// Delete workers after 6 calendar months.
-// Local SQLite is not affected.
+// CLOUD RETENTION
+// Worker + Application = 6 Months
+// Job Listings are NOT affected.
+// Local SQLite is NOT affected.
 // --------------------------------------------------
 
-let workerCleanupRunning = false;
+let cleanupRunning = false;
 
-async function cleanupExpiredWorkers() {
+async function cleanupExpiredRecords() {
 
-    if (workerCleanupRunning) return;
+    if (cleanupRunning) return;
 
-    workerCleanupRunning = true;
+    cleanupRunning = true;
 
     try {
 
         const result = await pool.query(`
             DELETE FROM sync_queue
-            WHERE record_type = 'worker'
+            WHERE record_type IN ('worker', 'application')
               AND created_at <= NOW() - INTERVAL '6 months'
-            RETURNING id
+            RETURNING id, record_type
         `);
 
         if (result.rowCount > 0) {
 
+            const workerCount = result.rows.filter(
+                row => row.record_type === "worker"
+            ).length;
+
+            const applicationCount = result.rows.filter(
+                row => row.record_type === "application"
+            ).length;
+
             console.log(
-                `[CLOUD CLEANUP] ${result.rowCount} expired worker records deleted.`
+                `[CLOUD CLEANUP] Workers deleted: ${workerCount}, Applications deleted: ${applicationCount}`
             );
         }
 
     } catch (error) {
 
         console.error(
-            "Worker Cleanup Error:",
+            "Cloud Retention Cleanup Error:",
             error.message
         );
 
     } finally {
 
-        workerCleanupRunning = false;
+        cleanupRunning = false;
     }
 }
 
@@ -467,6 +476,7 @@ app.get(
 
 // --------------------------------------------------
 // JOB APPLICATION
+// Application stays in Cloud for 6 months.
 // --------------------------------------------------
 
 app.post(
@@ -814,7 +824,8 @@ app.delete(
 );
 
 // --------------------------------------------------
-// ADMIN: PENDING APPLICATIONS
+// ADMIN: APPLICATIONS
+// Shows applications retained in Cloud.
 // --------------------------------------------------
 
 app.get(
@@ -825,7 +836,7 @@ app.get(
     asyncHandler(async (req, res) => {
 
         const result = await pool.query(`
-            SELECT id, payload, created_at
+            SELECT id, payload, created_at, synced_at
             FROM sync_queue
             WHERE record_type = 'application'
             ORDER BY id DESC
@@ -834,7 +845,8 @@ app.get(
         res.json(result.rows.map(row => ({
             _id: String(row.id),
             ...row.payload,
-            createdAt: row.created_at
+            createdAt: row.created_at,
+            syncedAt: row.synced_at
         })));
     })
 );
@@ -869,8 +881,8 @@ app.get(
 
 // --------------------------------------------------
 // OFFICE: FETCH QUEUE RECORDS
-// Workers already synced are not sent again.
-// Applications continue normal queue behavior.
+// Both Worker and Application are synced only once.
+// Already synced records are not sent again.
 // --------------------------------------------------
 
 app.get(
@@ -889,9 +901,9 @@ app.get(
             SELECT id, record_type, payload, created_at
             FROM sync_queue
             WHERE
-                record_type <> 'worker'
+                record_type NOT IN ('worker', 'application')
                 OR (
-                    record_type = 'worker'
+                    record_type IN ('worker', 'application')
                     AND synced_at IS NULL
                 )
             ORDER BY id ASC
@@ -912,8 +924,9 @@ app.get(
 // --------------------------------------------------
 // OFFICE: ACKNOWLEDGE SAVED RECORDS
 //
-// Worker  = Mark synced, DO NOT DELETE.
-// Application = Delete from Cloud queue.
+// Worker      = Mark synced, DO NOT DELETE.
+// Application = Mark synced, DO NOT DELETE.
+// Both remain in Cloud for 6 months.
 // --------------------------------------------------
 
 app.post(
@@ -947,31 +960,36 @@ app.post(
 
             await client.query("BEGIN");
 
-            // Workers remain in Cloud.
-            // Their first sync timestamp is preserved.
-            const workerResult = await client.query(`
+            // Mark BOTH workers and applications as synced.
+            // Never delete these records on ACK.
+            const result = await client.query(`
                 UPDATE sync_queue
                 SET synced_at = COALESCE(synced_at, NOW())
                 WHERE id = ANY($1::bigint[])
-                  AND record_type = 'worker'
-                RETURNING id
-            `, [uniqueIds]);
-
-            // Non-worker records, including applications,
-            // are deleted after successful local sync.
-            const otherResult = await client.query(`
-                DELETE FROM sync_queue
-                WHERE id = ANY($1::bigint[])
-                  AND record_type <> 'worker'
-                RETURNING id
+                  AND record_type IN ('worker', 'application')
+                RETURNING id, record_type
             `, [uniqueIds]);
 
             await client.query("COMMIT");
 
+            const workersMarkedSynced = result.rows.filter(
+                row => row.record_type === "worker"
+            ).length;
+
+            const applicationsMarkedSynced = result.rows.filter(
+                row => row.record_type === "application"
+            ).length;
+
             res.json({
-                message: "Acknowledgement processed.",
-                workersMarkedSynced: workerResult.rowCount,
-                otherRecordsDeleted: otherResult.rowCount
+                message: "Acknowledgement processed successfully.",
+
+                workersMarkedSynced,
+
+                applicationsMarkedSynced,
+
+                totalRecordsMarkedSynced: result.rowCount,
+
+                cloudDeletion: "After 6 months"
             });
 
         } catch (error) {
@@ -1047,8 +1065,8 @@ async function startServer() {
 
         await initializeDatabase();
 
-        // Run expired worker cleanup on startup.
-        await cleanupExpiredWorkers();
+        // Cleanup expired Workers and Applications on startup.
+        await cleanupExpiredRecords();
 
         app.listen(PORT, () => {
 
@@ -1057,17 +1075,25 @@ async function startServer() {
             );
 
             console.log(
-                "Worker cloud retention: 6 months"
+                "Worker Cloud Retention: 6 Months"
             );
 
             console.log(
-                "Worker ACK mode: Mark as synced, do not delete"
+                "Application Cloud Retention: 6 Months"
+            );
+
+            console.log(
+                "Worker ACK: Mark Synced, Do Not Delete"
+            );
+
+            console.log(
+                "Application ACK: Mark Synced, Do Not Delete"
             );
         });
 
-        // Repeat cleanup every hour.
+        // Run cleanup every hour.
         const cleanupTimer = setInterval(() => {
-            cleanupExpiredWorkers();
+            cleanupExpiredRecords();
         }, 60 * 60 * 1000);
 
         cleanupTimer.unref();
