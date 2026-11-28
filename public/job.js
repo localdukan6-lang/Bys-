@@ -369,7 +369,14 @@ async function load() {
                                     inputmode="numeric"
                                     maxlength="6">
                             </label>
-
+                             <label class="wide">
+                                 Message / Description
+                                   <textarea
+                                   name="message"
+                                   rows="4"
+                                   maxlength="2000"
+                                   placeholder="यहाँ अपनी अतिरिक्त जानकारी, अनुभव या कोई अन्य बात लिखें..."></textarea>
+                            </label>
                             <label class="wide">
                                 <input type="checkbox"
                                     name="declaration"
