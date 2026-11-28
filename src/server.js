@@ -5,7 +5,6 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
-const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const path = require("path");
@@ -14,15 +13,11 @@ const { Pool } = require("pg");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// --------------------------------------------------
-// RENDER PROXY CONFIGURATION
-// --------------------------------------------------
-
 app.set("trust proxy", 1);
 
-// --------------------------------------------------
-// REQUIRED ENVIRONMENT VARIABLES
-// --------------------------------------------------
+// ==================================================
+// ENVIRONMENT VARIABLES
+// ==================================================
 
 const requiredEnv = [
     "DATABASE_URL",
@@ -38,37 +33,100 @@ for (const key of requiredEnv) {
     }
 }
 
-// --------------------------------------------------
-// POSTGRESQL CONNECTION
-// --------------------------------------------------
+// ==================================================
+// POSTGRESQL
+// ==================================================
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-
     ssl: process.env.PGSSL === "true"
         ? { rejectUnauthorized: false }
         : undefined,
-
     max: 10,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000
 });
 
-pool.on("error", (error) => {
+pool.on("error", error => {
     console.error("PostgreSQL Pool Error:", error.message);
 });
 
-// --------------------------------------------------
-// ASYNC HANDLER
-// --------------------------------------------------
+// ==================================================
+// HELPERS
+// ==================================================
 
 const asyncHandler = fn =>
     (req, res, next) =>
         Promise.resolve(fn(req, res, next)).catch(next);
 
-// --------------------------------------------------
+function safeText(value, maxLength = 1000) {
+    if (typeof value !== "string") return "";
+    return value.trim().slice(0, maxLength);
+}
+
+function normalizeMobile(value) {
+    let mobile = String(value || "").replace(/\D/g, "");
+
+    if (mobile.length === 12 && mobile.startsWith("91")) {
+        mobile = mobile.slice(2);
+    }
+
+    if (mobile.length === 11 && mobile.startsWith("0")) {
+        mobile = mobile.slice(1);
+    }
+
+    return mobile;
+}
+
+function validMobile(value) {
+    return /^[6-9]\d{9}$/.test(normalizeMobile(value));
+}
+
+function mobileFingerprint(mobile) {
+    return crypto
+        .createHmac("sha256", process.env.JWT_SECRET)
+        .update(normalizeMobile(mobile))
+        .digest("hex");
+}
+
+function safeEqual(a, b) {
+    const first = Buffer.from(String(a || ""));
+    const second = Buffer.from(String(b || ""));
+
+    return first.length === second.length &&
+        crypto.timingSafeEqual(first, second);
+}
+
+function formatJob(row) {
+    if (!row) return null;
+
+    return {
+        ...(row.data || {}),
+        _id: String(row.id),
+        category: row.category,
+        status: row.status,
+        featured: row.featured,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+    };
+}
+
+function isAccepted(value) {
+    return value === true ||
+        value === "true" ||
+        value === "on" ||
+        value === "yes" ||
+        value === "1";
+}
+
+function validEmail(email) {
+    return !email ||
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// ==================================================
 // MIDDLEWARE
-// --------------------------------------------------
+// ==================================================
 
 app.use(helmet({
     contentSecurityPolicy: false
@@ -96,22 +154,17 @@ console.log("Allowed Website Origins:", allowedOrigins);
 
 app.use(cors({
     origin(origin, callback) {
+        if (!origin) return callback(null, true);
 
-        if (!origin) {
-            return callback(null, true);
-        }
+        const normalized = origin.replace(/\/$/, "");
 
-        const normalizedOrigin = origin.replace(/\/$/, "");
-
-        if (allowedOrigins.includes(normalizedOrigin)) {
+        if (allowedOrigins.includes(normalized)) {
             return callback(null, true);
         }
 
         console.log("Blocked Website Origin:", origin);
-
         return callback(new Error("Origin not allowed by CORS"));
     },
-
     credentials: true,
     optionsSuccessStatus: 204
 }));
@@ -119,88 +172,18 @@ app.use(cors({
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-const apiLimiter = rateLimit({
+app.use("/api", rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 300,
     standardHeaders: true,
     legacyHeaders: false
-});
-
-app.use("/api", apiLimiter);
+}));
 
 app.use(express.static(path.join(__dirname, "../public")));
 
-// --------------------------------------------------
-// HELPERS
-// --------------------------------------------------
-
-function safeText(value, maxLength = 1000) {
-
-    if (typeof value !== "string") return "";
-
-    return value.trim().slice(0, maxLength);
-}
-
-// Normalize Indian mobile number to 10 digits.
-function normalizeMobile(value) {
-
-    let mobile = String(value || "").replace(/\D/g, "");
-
-    if (mobile.length === 12 && mobile.startsWith("91")) {
-        mobile = mobile.slice(2);
-    }
-
-    if (mobile.length === 11 && mobile.startsWith("0")) {
-        mobile = mobile.slice(1);
-    }
-
-    return mobile;
-}
-
-function validMobile(value) {
-
-    return /^[6-9]\d{9}$/.test(
-        normalizeMobile(value)
-    );
-}
-
-// Generate a protected fingerprint.
-// Do not change JWT_SECRET without migrating existing fingerprints.
-function mobileFingerprint(mobile) {
-
-    return crypto
-        .createHmac("sha256", process.env.JWT_SECRET)
-        .update(normalizeMobile(mobile))
-        .digest("hex");
-}
-
-function safeEqual(a, b) {
-
-    const first = Buffer.from(String(a || ""));
-    const second = Buffer.from(String(b || ""));
-
-    return first.length === second.length &&
-        crypto.timingSafeEqual(first, second);
-}
-
-function formatJob(row) {
-
-    if (!row) return null;
-
-    return {
-        ...row.data,
-        _id: String(row.id),
-        category: row.category,
-        status: row.status,
-        featured: row.featured,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at
-    };
-}
-
-// --------------------------------------------------
-// DATABASE TABLES + SAFE MIGRATION
-// --------------------------------------------------
+// ==================================================
+// DATABASE INITIALIZATION
+// ==================================================
 
 async function initializeDatabase() {
 
@@ -239,58 +222,40 @@ async function initializeDatabase() {
         ON sync_queue(created_at)
         WHERE record_type IN ('worker', 'application');
 
-        -- Permanent duplicate protection fingerprints.
-        -- These are not complete form records.
         CREATE TABLE IF NOT EXISTS form_dedup (
             record_type VARCHAR(30) NOT NULL,
             scope_key VARCHAR(100) NOT NULL,
             mobile_hash CHAR(64) NOT NULL,
             created_at TIMESTAMPTZ DEFAULT NOW(),
-
             PRIMARY KEY (
                 record_type,
                 scope_key,
                 mobile_hash
             )
         );
-
-        CREATE INDEX IF NOT EXISTS idx_form_dedup_created
-        ON form_dedup(created_at);
     `);
 
-    // --------------------------------------------------
-    // MIGRATE EXISTING RECORDS INTO DUPLICATE PROTECTION
-    // Existing Workers and Applications remain untouched.
-    // --------------------------------------------------
-
-    const existingRecords = await pool.query(`
+    // Migrate existing records into permanent duplicate protection.
+    const existing = await pool.query(`
         SELECT record_type, payload
         FROM sync_queue
         WHERE record_type IN ('worker', 'application')
     `);
 
-    let migratedCount = 0;
+    let migrated = 0;
 
-    for (const row of existingRecords.rows) {
-
+    for (const row of existing.rows) {
         const payload = row.payload || {};
-
         const mobile = normalizeMobile(payload.mobile);
 
-        if (!validMobile(mobile)) {
-            continue;
-        }
+        if (!validMobile(mobile)) continue;
 
-        let scopeKey;
+        let scopeKey = "worker";
 
-        if (row.record_type === "worker") {
-            scopeKey = "worker";
-        } else {
+        if (row.record_type === "application") {
             scopeKey = String(payload.jobId || "");
 
-            if (!/^\d+$/.test(scopeKey)) {
-                continue;
-            }
+            if (!/^\d+$/.test(scopeKey)) continue;
         }
 
         const fingerprint = mobileFingerprint(mobile);
@@ -309,73 +274,51 @@ async function initializeDatabase() {
             fingerprint
         ]);
 
-        migratedCount += result.rowCount;
+        migrated += result.rowCount;
     }
 
     console.log("PostgreSQL tables initialized.");
-
-    console.log(
-        `Duplicate protection migration completed. Fingerprints added: ${migratedCount}`
-    );
+    console.log("Existing duplicate fingerprints migrated:", migrated);
 }
 
-// --------------------------------------------------
+// ==================================================
 // CLOUD RETENTION
-// Worker + Application = 6 Months
-// Full form records are deleted.
-// Deduplication fingerprints remain.
-// Jobs are NOT affected.
-// Local SQLite is NOT affected.
-// --------------------------------------------------
-
-let cleanupRunning = false;
+// Worker + Application records: 6 months
+// Dedup fingerprints: Permanent
+// Jobs: Never deleted by this cleanup
+// ==================================================
 
 async function cleanupExpiredRecords() {
 
-    if (cleanupRunning) return;
+    const result = await pool.query(`
+        DELETE FROM sync_queue
+        WHERE record_type IN ('worker', 'application')
+          AND created_at < NOW() - INTERVAL '6 months'
+        RETURNING id, record_type
+    `);
 
-    cleanupRunning = true;
+    const workersDeleted = result.rows.filter(
+        row => row.record_type === "worker"
+    ).length;
 
-    try {
+    const applicationsDeleted = result.rows.filter(
+        row => row.record_type === "application"
+    ).length;
 
-        const result = await pool.query(`
-            DELETE FROM sync_queue
-            WHERE record_type IN ('worker', 'application')
-              AND created_at <= NOW() - INTERVAL '6 months'
-            RETURNING id, record_type
-        `);
-
-        if (result.rowCount > 0) {
-
-            const workerCount = result.rows.filter(
-                row => row.record_type === "worker"
-            ).length;
-
-            const applicationCount = result.rows.filter(
-                row => row.record_type === "application"
-            ).length;
-
-            console.log(
-                `[CLOUD CLEANUP] Workers deleted: ${workerCount}, Applications deleted: ${applicationCount}`
-            );
-        }
-
-    } catch (error) {
-
-        console.error(
-            "Cloud Retention Cleanup Error:",
-            error.message
-        );
-
-    } finally {
-
-        cleanupRunning = false;
+    if (result.rowCount > 0) {
+        console.log("Cloud retention cleanup:", {
+            workersDeleted,
+            applicationsDeleted,
+            totalDeleted: result.rowCount
+        });
     }
+
+    return result.rowCount;
 }
 
-// --------------------------------------------------
+// ==================================================
 // ADMIN AUTHENTICATION
-// --------------------------------------------------
+// ==================================================
 
 function adminAuth(req, res, next) {
 
@@ -389,7 +332,6 @@ function adminAuth(req, res, next) {
     }
 
     try {
-
         const payload = jwt.verify(
             token,
             process.env.JWT_SECRET
@@ -400,20 +342,18 @@ function adminAuth(req, res, next) {
         }
 
         req.admin = payload;
-
         next();
 
     } catch {
-
         return res.status(401).json({
             message: "Session expired. Please login again."
         });
     }
 }
 
-// --------------------------------------------------
+// ==================================================
 // OFFICE AUTHENTICATION
-// --------------------------------------------------
+// ==================================================
 
 function officeAuth(req, res, next) {
 
@@ -428,9 +368,9 @@ function officeAuth(req, res, next) {
     next();
 }
 
-// --------------------------------------------------
+// ==================================================
 // ADMIN LOGIN
-// --------------------------------------------------
+// ==================================================
 
 app.post(
     "/api/admin/login",
@@ -448,17 +388,11 @@ app.post(
 
         const expectedUser = process.env.ADMIN_USERNAME || "admin";
 
-        const userMatches = safeEqual(
-            username,
-            expectedUser
+        const userMatches = safeEqual(username, expectedUser);
+        const passwordMatches = safeEqual(
+            password,
+            process.env.ADMIN_PASSWORD
         );
-
-        const passwordMatches =
-            typeof password === "string" &&
-            await bcrypt.compare(
-                password,
-                await bcrypt.hash(process.env.ADMIN_PASSWORD, 10)
-            );
 
         if (!userMatches || !passwordMatches) {
             return res.status(401).json({
@@ -472,9 +406,7 @@ app.post(
                 username: expectedUser
             },
             process.env.JWT_SECRET,
-            {
-                expiresIn: "8h"
-            }
+            { expiresIn: "8h" }
         );
 
         res.json({
@@ -484,9 +416,199 @@ app.post(
     })
 );
 
-// --------------------------------------------------
+// ==================================================
+// WORKER REGISTRATION
+// One mobile = One registration permanently
+// All fields saved in JSONB
+// ==================================================
+
+app.post(
+    "/api/workers/register",
+
+    rateLimit({
+        windowMs: 15 * 60 * 1000,
+        limit: 15,
+        standardHeaders: true,
+        legacyHeaders: false
+    }),
+
+    asyncHandler(async (req, res) => {
+
+        const body = req.body || {};
+
+        const mobile = normalizeMobile(body.mobile);
+        const whatsapp = normalizeMobile(body.whatsapp);
+        const alternateMobile = normalizeMobile(body.alternateMobile);
+
+        const data = {
+
+            registrationId:
+                "WRK" +
+                Date.now().toString().slice(-8) +
+                crypto.randomBytes(3).toString("hex").toUpperCase(),
+
+            // Personal Details
+            name: safeText(body.name, 100),
+            fatherName: safeText(body.fatherName, 100),
+            motherName: safeText(body.motherName, 100),
+            dob: safeText(body.dob, 20),
+            gender: safeText(body.gender, 30),
+            maritalStatus: safeText(body.maritalStatus, 50),
+            category: safeText(body.category, 50),
+            otherCategory: safeText(body.otherCategory, 100),
+            nationality: safeText(body.nationality, 60),
+
+            // Contact Details
+            mobile,
+            whatsapp,
+            alternateMobile,
+            email: safeText(body.email, 150).toLowerCase(),
+
+            // Address Details
+            country: safeText(body.country, 100),
+            state: safeText(body.state, 100),
+            district: safeText(body.district, 100),
+            city: safeText(body.city, 100),
+            tehsil: safeText(body.tehsil, 100),
+            postOffice: safeText(body.postOffice, 100),
+            pincode: safeText(body.pincode, 10),
+            address: safeText(body.address, 500),
+
+            // Education Details
+            qualification: safeText(body.qualification, 100),
+            otherQualification: safeText(body.otherQualification, 150),
+            course: safeText(body.course, 150),
+            institute: safeText(body.institute, 200),
+            passingYear: safeText(body.passingYear, 10),
+            percentage: safeText(body.percentage, 20),
+
+            // Experience Details
+            experience: safeText(body.experience, 100),
+            employmentStatus: safeText(body.employmentStatus, 100),
+            company: safeText(body.company, 150),
+            designation: safeText(body.designation, 150),
+            industry: safeText(body.industry, 100),
+            otherIndustry: safeText(body.otherIndustry, 100),
+
+            // Job Preferences
+            workType: safeText(body.workType, 100),
+            otherWorkType: safeText(body.otherWorkType, 100),
+            preferredLocation: safeText(body.preferredLocation, 200),
+            expectedSalary: safeText(body.expectedSalary, 50),
+            preferredShift: safeText(body.preferredShift, 50),
+            relocation: safeText(body.relocation, 50),
+
+            // Skills
+            skills: safeText(body.skills, 1000),
+            message: safeText(body.message, 1000),
+
+            consent: isAccepted(body.consent),
+            status: "Pending"
+        };
+
+        // Required field validation
+        if (
+            !data.name ||
+            !validMobile(data.mobile) ||
+            !data.state ||
+            !data.district ||
+            !data.address ||
+            !data.qualification ||
+            !data.experience ||
+            !data.workType
+        ) {
+            return res.status(400).json({
+                message: "Please enter all required details correctly."
+            });
+        }
+
+        if (
+            (data.whatsapp && !validMobile(data.whatsapp)) ||
+            (data.alternateMobile && !validMobile(data.alternateMobile))
+        ) {
+            return res.status(400).json({
+                message: "Please enter valid mobile numbers."
+            });
+        }
+
+        if (!validEmail(data.email)) {
+            return res.status(400).json({
+                message: "Please enter a valid email address."
+            });
+        }
+
+        if (data.pincode && !/^\d{6}$/.test(data.pincode)) {
+            return res.status(400).json({
+                message: "Please enter a valid 6 digit PIN code."
+            });
+        }
+
+        if (!data.consent) {
+            return res.status(400).json({
+                message: "Please accept the registration declaration."
+            });
+        }
+
+        const client = await pool.connect();
+
+        try {
+            await client.query("BEGIN");
+
+            const fingerprint = mobileFingerprint(data.mobile);
+
+            await client.query(
+                `SELECT pg_advisory_xact_lock(
+                    hashtextextended($1, 0)
+                )`,
+                [`worker:${fingerprint}`]
+            );
+
+            const dedupResult = await client.query(`
+                INSERT INTO form_dedup (
+                    record_type,
+                    scope_key,
+                    mobile_hash
+                )
+                VALUES ('worker', 'worker', $1)
+                ON CONFLICT DO NOTHING
+                RETURNING mobile_hash
+            `, [fingerprint]);
+
+            if (dedupResult.rowCount === 0) {
+                await client.query("ROLLBACK");
+
+                return res.status(409).json({
+                    duplicate: true,
+                    message: "आपका Worker Registration पहले से मौजूद है। एक मोबाइल नंबर से केवल एक Registration किया जा सकता है।"
+                });
+            }
+
+            await client.query(`
+                INSERT INTO sync_queue (record_type, payload)
+                VALUES ('worker', $1::jsonb)
+            `, [JSON.stringify(data)]);
+
+            await client.query("COMMIT");
+
+            res.status(201).json({
+                success: true,
+                message: "Worker registration submitted successfully.",
+                registrationId: data.registrationId
+            });
+
+        } catch (error) {
+            await client.query("ROLLBACK");
+            throw error;
+
+        } finally {
+            client.release();
+        }
+    })
+);
+
+// ==================================================
 // PUBLIC JOB LIST
-// --------------------------------------------------
+// ==================================================
 
 app.get(
     "/api/jobs",
@@ -497,30 +619,17 @@ app.get(
         const values = [];
 
         if (["Government", "Private"].includes(req.query.category)) {
-
             values.push(req.query.category);
-
-            conditions.push(
-                `category = $${values.length}`
-            );
+            conditions.push(`category = $${values.length}`);
         }
 
         if (req.query.status) {
-
-            values.push(
-                safeText(req.query.status, 60)
-            );
-
-            conditions.push(
-                `status = $${values.length}`
-            );
+            values.push(safeText(req.query.status, 60));
+            conditions.push(`status = $${values.length}`);
         }
 
         if (req.query.q) {
-
-            values.push(
-                `%${safeText(req.query.q, 100)}%`
-            );
+            values.push(`%${safeText(req.query.q, 100)}%`);
 
             const index = values.length;
 
@@ -548,9 +657,9 @@ app.get(
     })
 );
 
-// --------------------------------------------------
-// SINGLE JOB
-// --------------------------------------------------
+// ==================================================
+// SINGLE JOB DETAILS
+// ==================================================
 
 app.get(
     "/api/jobs/:id",
@@ -578,15 +687,20 @@ app.get(
     })
 );
 
-// --------------------------------------------------
+// ==================================================
 // JOB APPLICATION
-// One mobile = One application per Job.
-// Same mobile can apply to other Jobs.
-// Cloud full record retention = 6 Months.
-// --------------------------------------------------
+// One mobile = One application per Job
+// ==================================================
 
 app.post(
     "/api/jobs/:id/apply",
+
+    rateLimit({
+        windowMs: 15 * 60 * 1000,
+        limit: 20,
+        standardHeaders: true,
+        legacyHeaders: false
+    }),
 
     asyncHandler(async (req, res) => {
 
@@ -596,26 +710,27 @@ app.post(
             });
         }
 
-        const applicantName = safeText(
-            req.body?.applicantName,
-            100
-        );
+        const body = req.body || {};
 
-        const mobile = normalizeMobile(
-            req.body?.mobile
-        );
+        const applicantName = safeText(body.applicantName, 100);
+        const mobile = normalizeMobile(body.mobile);
+        const email = safeText(body.email, 150).toLowerCase();
 
         if (!applicantName || !validMobile(mobile)) {
-
             return res.status(400).json({
                 message: "Please enter your name and valid 10 digit mobile number."
+            });
+        }
+
+        if (!validEmail(email)) {
+            return res.status(400).json({
+                message: "Please enter a valid email address."
             });
         }
 
         const client = await pool.connect();
 
         try {
-
             await client.query("BEGIN");
 
             const jobResult = await client.query(
@@ -624,7 +739,6 @@ app.post(
             );
 
             if (!jobResult.rows.length) {
-
                 await client.query("ROLLBACK");
 
                 return res.status(404).json({
@@ -638,7 +752,6 @@ app.post(
                 "Application Closed",
                 "Result Declared"
             ].includes(job.status)) {
-
                 await client.query("ROLLBACK");
 
                 return res.status(400).json({
@@ -647,10 +760,8 @@ app.post(
             }
 
             const fingerprint = mobileFingerprint(mobile);
-
             const scopeKey = String(job._id);
 
-            // Serialize simultaneous submissions for same Job + Mobile.
             await client.query(
                 `SELECT pg_advisory_xact_lock(
                     hashtextextended($1, 0)
@@ -658,7 +769,6 @@ app.post(
                 [`application:${scopeKey}:${fingerprint}`]
             );
 
-            // Permanent duplicate check.
             const dedupResult = await client.query(`
                 INSERT INTO form_dedup (
                     record_type,
@@ -668,13 +778,9 @@ app.post(
                 VALUES ('application', $1, $2)
                 ON CONFLICT DO NOTHING
                 RETURNING mobile_hash
-            `, [
-                scopeKey,
-                fingerprint
-            ]);
+            `, [scopeKey, fingerprint]);
 
             if (dedupResult.rowCount === 0) {
-
                 await client.query("ROLLBACK");
 
                 return res.status(409).json({
@@ -688,218 +794,65 @@ app.post(
                 Date.now().toString().slice(-8) +
                 crypto.randomBytes(3).toString("hex").toUpperCase();
 
+            // Save all application fields.
             const payload = {
-
                 applicationId,
-
                 jobId: job._id,
-
                 jobTitle: job.title || "",
-
                 organization: job.organization || "",
 
                 applicantName,
-
+                fatherName: safeText(body.fatherName, 100),
                 mobile,
+                email,
 
-                email: safeText(
-                    req.body?.email,
-                    150
-                ).toLowerCase(),
+                dob: safeText(body.dob, 20),
+                gender: safeText(body.gender, 30),
+                qualification: safeText(body.qualification, 100),
 
-                qualification: safeText(
-                    req.body?.qualification,
-                    100
-                ),
+                experienceStatus: safeText(body.experienceStatus, 100),
+                experienceYears: safeText(body.experienceYears, 50),
+                company: safeText(body.company, 150),
 
-                message: safeText(
-                    req.body?.message,
-                    1000
-                ),
+                address: safeText(body.address, 500),
+                district: safeText(body.district, 100),
+                state: safeText(body.state, 100),
+                pincode: safeText(body.pincode, 10),
 
+                message: safeText(body.message, 1000),
                 status: "Pending"
             };
 
             await client.query(`
                 INSERT INTO sync_queue (record_type, payload)
                 VALUES ('application', $1::jsonb)
-            `, [
-                JSON.stringify(payload)
-            ]);
+            `, [JSON.stringify(payload)]);
 
             await client.query("COMMIT");
 
             res.status(201).json({
+                success: true,
                 message: "Application submitted successfully.",
                 applicationId
             });
 
         } catch (error) {
-
             await client.query("ROLLBACK");
-
             throw error;
 
         } finally {
-
             client.release();
         }
     })
 );
 
-// --------------------------------------------------
-// WORKER REGISTRATION
-// One mobile = One Worker Registration permanently.
-// Cloud full record retention = 6 Months.
-// --------------------------------------------------
-
-app.post(
-    "/api/workers/register",
-
-    rateLimit({
-        windowMs: 15 * 60 * 1000,
-        limit: 15,
-        standardHeaders: true,
-        legacyHeaders: false
-    }),
-
-    asyncHandler(async (req, res) => {
-
-        const data = {
-
-            registrationId:
-                "WRK" +
-                Date.now().toString().slice(-8) +
-                crypto.randomBytes(3).toString("hex").toUpperCase(),
-
-            name: safeText(req.body?.name, 100),
-
-            mobile: normalizeMobile(req.body?.mobile),
-
-            whatsapp: normalizeMobile(req.body?.whatsapp),
-
-            email: safeText(req.body?.email, 150).toLowerCase(),
-
-            state: safeText(req.body?.state, 100),
-
-            district: safeText(req.body?.district, 100),
-
-            address: safeText(req.body?.address, 500),
-
-            qualification: safeText(req.body?.qualification, 100),
-
-            experience: safeText(req.body?.experience, 100),
-
-            workType: safeText(req.body?.workType, 100),
-
-            message: safeText(req.body?.message, 1000),
-
-            status: "Pending"
-        };
-
-        if (
-            !data.name ||
-            !validMobile(data.mobile) ||
-            (data.whatsapp && !validMobile(data.whatsapp)) ||
-            !data.state ||
-            !data.district ||
-            !data.address ||
-            !data.qualification ||
-            !data.experience ||
-            !data.workType
-        ) {
-
-            return res.status(400).json({
-                message: "Please enter all required details correctly."
-            });
-        }
-
-        if (
-            data.email &&
-            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)
-        ) {
-
-            return res.status(400).json({
-                message: "Please enter a valid email address."
-            });
-        }
-
-        const client = await pool.connect();
-
-        try {
-
-            await client.query("BEGIN");
-
-            const fingerprint = mobileFingerprint(data.mobile);
-
-            // Serialize simultaneous registrations for same mobile.
-            await client.query(
-                `SELECT pg_advisory_xact_lock(
-                    hashtextextended($1, 0)
-                )`,
-                [`worker:${fingerprint}`]
-            );
-
-            // Permanent duplicate check.
-            const dedupResult = await client.query(`
-                INSERT INTO form_dedup (
-                    record_type,
-                    scope_key,
-                    mobile_hash
-                )
-                VALUES ('worker', 'worker', $1)
-                ON CONFLICT DO NOTHING
-                RETURNING mobile_hash
-            `, [
-                fingerprint
-            ]);
-
-            if (dedupResult.rowCount === 0) {
-
-                await client.query("ROLLBACK");
-
-                return res.status(409).json({
-                    duplicate: true,
-                    message: "आपका Worker Registration पहले से मौजूद है। एक मोबाइल नंबर से केवल एक Registration किया जा सकता है।"
-                });
-            }
-
-            await client.query(`
-                INSERT INTO sync_queue (record_type, payload)
-                VALUES ('worker', $1::jsonb)
-            `, [
-                JSON.stringify(data)
-            ]);
-
-            await client.query("COMMIT");
-
-            res.status(201).json({
-                message: "Worker registration submitted successfully.",
-                registrationId: data.registrationId
-            });
-
-        } catch (error) {
-
-            await client.query("ROLLBACK");
-
-            throw error;
-
-        } finally {
-
-            client.release();
-        }
-    })
-);
-
-// --------------------------------------------------
+// ==================================================
 // ADMIN: JOB MANAGEMENT
-// --------------------------------------------------
+// ==================================================
 
 app.get(
     "/api/admin/jobs",
-
     adminAuth,
-
     asyncHandler(async (req, res) => {
 
         const result = await pool.query(
@@ -913,9 +866,7 @@ app.get(
 // ADD JOB
 app.post(
     "/api/admin/jobs",
-
     adminAuth,
-
     asyncHandler(async (req, res) => {
 
         const data = req.body || {};
@@ -926,17 +877,12 @@ app.post(
             });
         }
 
-        const category = [
-            "Government",
-            "Private"
-        ].includes(data.category)
+        const category = ["Government", "Private"].includes(data.category)
             ? data.category
             : "Private";
 
         const status = safeText(data.status, 60) ||
             "Application Started";
-
-        const featured = data.featured === true;
 
         const result = await pool.query(`
             INSERT INTO jobs (data, category, status, featured)
@@ -946,21 +892,17 @@ app.post(
             JSON.stringify(data),
             category,
             status,
-            featured
+            data.featured === true
         ]);
 
-        res.status(201).json(
-            formatJob(result.rows[0])
-        );
+        res.status(201).json(formatJob(result.rows[0]));
     })
 );
 
 // UPDATE JOB
 app.put(
     "/api/admin/jobs/:id",
-
     adminAuth,
-
     asyncHandler(async (req, res) => {
 
         if (!/^\d+$/.test(req.params.id)) {
@@ -977,10 +919,7 @@ app.put(
             });
         }
 
-        const category = [
-            "Government",
-            "Private"
-        ].includes(data.category)
+        const category = ["Government", "Private"].includes(data.category)
             ? data.category
             : "Private";
 
@@ -1017,9 +956,7 @@ app.put(
 // DELETE JOB
 app.delete(
     "/api/admin/jobs/:id",
-
     adminAuth,
-
     asyncHandler(async (req, res) => {
 
         if (!/^\d+$/.test(req.params.id)) {
@@ -1045,15 +982,13 @@ app.delete(
     })
 );
 
-// --------------------------------------------------
+// ==================================================
 // ADMIN: APPLICATIONS
-// --------------------------------------------------
+// ==================================================
 
 app.get(
     "/api/admin/applications",
-
     adminAuth,
-
     asyncHandler(async (req, res) => {
 
         const result = await pool.query(`
@@ -1072,15 +1007,13 @@ app.get(
     })
 );
 
-// --------------------------------------------------
-// ADMIN: WORKER REGISTRATIONS
-// --------------------------------------------------
+// ==================================================
+// ADMIN: WORKERS
+// ==================================================
 
 app.get(
     "/api/admin/workers",
-
     adminAuth,
-
     asyncHandler(async (req, res) => {
 
         const result = await pool.query(`
@@ -1099,16 +1032,13 @@ app.get(
     })
 );
 
-// --------------------------------------------------
-// OFFICE: FETCH QUEUE RECORDS
-// Already synced Workers and Applications are not resent.
-// --------------------------------------------------
+// ==================================================
+// OFFICE: FETCH UNSYNCED RECORDS
+// ==================================================
 
 app.get(
     "/api/office/sync",
-
     officeAuth,
-
     asyncHandler(async (req, res) => {
 
         const limit = Math.min(
@@ -1140,16 +1070,14 @@ app.get(
     })
 );
 
-// --------------------------------------------------
+// ==================================================
 // OFFICE: ACKNOWLEDGE SAVED RECORDS
-// Worker + Application = Mark Synced, Never Delete.
-// --------------------------------------------------
+// Mark synced, do not delete
+// ==================================================
 
 app.post(
     "/api/office/ack",
-
     officeAuth,
-
     asyncHandler(async (req, res) => {
 
         const ids = req.body?.ids;
@@ -1160,20 +1088,16 @@ app.post(
             ids.length > 500 ||
             !ids.every(id => /^\d+$/.test(String(id)))
         ) {
-
             return res.status(400).json({
                 message: "Please provide valid queue IDs."
             });
         }
 
-        const uniqueIds = [
-            ...new Set(ids.map(String))
-        ];
+        const uniqueIds = [...new Set(ids.map(String))];
 
         const client = await pool.connect();
 
         try {
-
             await client.query("BEGIN");
 
             const result = await client.query(`
@@ -1196,36 +1120,28 @@ app.post(
 
             res.json({
                 message: "Acknowledgement processed successfully.",
-
                 workersMarkedSynced,
-
                 applicationsMarkedSynced,
-
                 totalRecordsMarkedSynced: result.rowCount,
-
                 cloudDeletion: "After 6 months"
             });
 
         } catch (error) {
-
             await client.query("ROLLBACK");
-
             throw error;
 
         } finally {
-
             client.release();
         }
     })
 );
 
-// --------------------------------------------------
+// ==================================================
 // HEALTH CHECK
-// --------------------------------------------------
+// ==================================================
 
 app.get(
     "/api/health",
-
     asyncHandler(async (req, res) => {
 
         await pool.query("SELECT 1");
@@ -1238,9 +1154,9 @@ app.get(
     })
 );
 
-// --------------------------------------------------
+// ==================================================
 // ERROR HANDLER
-// --------------------------------------------------
+// ==================================================
 
 app.use((err, req, res, next) => {
 
@@ -1268,9 +1184,9 @@ app.use((err, req, res, next) => {
     });
 });
 
-// --------------------------------------------------
+// ==================================================
 // START SERVER
-// --------------------------------------------------
+// ==================================================
 
 async function startServer() {
 
@@ -1280,54 +1196,38 @@ async function startServer() {
 
         await initializeDatabase();
 
-        // Cleanup expired full records on startup.
+        // Clean expired records at startup.
         await cleanupExpiredRecords();
 
         app.listen(PORT, () => {
 
-            console.log(
-                `BYS ASSOCIATE JOB running on port ${PORT}`
-            );
+            console.log(`BYS ASSOCIATE JOB running on port ${PORT}`);
+            console.log("Database: PostgreSQL");
 
-            console.log(
-                "Worker Cloud Retention: 6 Months"
-            );
+            console.log("Worker Cloud Retention: 6 Months");
+            console.log("Application Cloud Retention: 6 Months");
 
-            console.log(
-                "Application Cloud Retention: 6 Months"
-            );
+            console.log("Worker Duplicate Protection: Permanent");
+            console.log("Application Duplicate Protection: Per Job, Permanent");
 
-            console.log(
-                "Worker Duplicate Protection: Permanent"
-            );
-
-            console.log(
-                "Application Duplicate Protection: Per Job, Permanent"
-            );
-
-            console.log(
-                "Worker ACK: Mark Synced, Do Not Delete"
-            );
-
-            console.log(
-                "Application ACK: Mark Synced, Do Not Delete"
-            );
+            console.log("Worker ACK: Mark Synced, Do Not Delete");
+            console.log("Application ACK: Mark Synced, Do Not Delete");
         });
 
-        // Run cleanup every hour.
+        // Run retention cleanup every hour.
         const cleanupTimer = setInterval(() => {
-            cleanupExpiredRecords();
+
+            cleanupExpiredRecords().catch(error => {
+                console.error("Retention Cleanup Error:", error.message);
+            });
+
         }, 60 * 60 * 1000);
 
         cleanupTimer.unref();
 
     } catch (error) {
 
-        console.error(
-            "Server startup failed:",
-            error.message
-        );
-
+        console.error("Server startup failed:", error);
         process.exit(1);
     }
 }
