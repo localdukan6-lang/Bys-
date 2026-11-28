@@ -7,7 +7,8 @@
 
     <title>Worker Registration | BYS ASSOCIATE JOB</title>
 
-    <meta name="description" content="Register with BYS ASSOCIATE JOB for employment opportunities.">
+    <meta name="description"
+          content="Register with BYS ASSOCIATE JOB for employment opportunities.">
 
     <link rel="stylesheet" href="worker-registration.css">
 </head>
@@ -19,6 +20,7 @@
         <h2>BYS ASSOCIATE JOB</h2>
         <p>Worker Registration Portal</p>
     </div>
+
     <a href="index.html" class="home-btn">Home</a>
 </header>
 
@@ -32,12 +34,15 @@
     </div>
 
     <div class="notice">
-        कृपया सभी जरूरी जानकारी सही-सही भरें। (*) वाली जानकारी अनिवार्य है।
+        कृपया सभी जरूरी जानकारी सही-सही भरें।
+        (*) वाली जानकारी अनिवार्य है।
     </div>
 
     <form id="workerForm">
 
-        <!-- PERSONAL INFORMATION -->
+        <!-- ================================= -->
+        <!-- 1. PERSONAL INFORMATION -->
+        <!-- ================================= -->
 
         <h3>1. Personal Information</h3>
 
@@ -45,55 +50,101 @@
 
             <div class="field">
                 <label>Full Name *</label>
-                <input type="text" name="name" id="name"
-                       maxlength="100" autocomplete="name"
-                       placeholder="Enter full name" required>
+                <input type="text"
+                       name="name"
+                       id="name"
+                       maxlength="100"
+                       autocomplete="name"
+                       placeholder="Enter full name"
+                       required>
             </div>
 
             <div class="field">
                 <label>Father's Name *</label>
-                <input type="text" name="fatherName"
-                       maxlength="100" required
-                       placeholder="Enter father's name">
+                <input type="text"
+                       name="fatherName"
+                       maxlength="100"
+                       placeholder="Enter father's name"
+                       required>
             </div>
 
             <div class="field">
                 <label>Mother's Name</label>
-                <input type="text" name="motherName"
+                <input type="text"
+                       name="motherName"
                        maxlength="100"
                        placeholder="Enter mother's name">
             </div>
 
             <div class="field">
                 <label>Date of Birth *</label>
-                <input type="date" name="dob" id="dob" required>
+                <input type="date"
+                       name="dob"
+                       id="dob"
+                       required>
             </div>
+
+            <!-- GENDER -->
 
             <div class="field">
                 <label>Gender *</label>
-                <select name="gender" id="gender" required>
+
+                <select name="gender"
+                        id="gender"
+                        required>
+
                     <option value="">Select Gender</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                     <option value="Other">Other</option>
+
                 </select>
             </div>
 
+            <div class="field" id="genderOtherBox" hidden>
+                <label>Enter Gender *</label>
+
+                <input type="text"
+                       name="otherGender"
+                       maxlength="50"
+                       placeholder="Enter your gender">
+            </div>
+
+            <!-- MARITAL STATUS -->
+
             <div class="field">
                 <label>Marital Status</label>
-                <select name="maritalStatus">
+
+                <select name="maritalStatus"
+                        id="maritalStatus">
+
                     <option value="">Select Status</option>
                     <option value="Single">Single</option>
                     <option value="Married">Married</option>
                     <option value="Widow">Widow</option>
                     <option value="Widower">Widower</option>
                     <option value="Other">Other</option>
+
                 </select>
             </div>
 
+            <div class="field" id="maritalOtherBox" hidden>
+                <label>Enter Marital Status *</label>
+
+                <input type="text"
+                       name="otherMaritalStatus"
+                       maxlength="100"
+                       placeholder="Enter marital status">
+            </div>
+
+            <!-- CATEGORY -->
+
             <div class="field">
                 <label>Category</label>
-                <select name="category" id="category">
+
+                <select name="category"
+                        id="category">
+
                     <option value="">Select Category</option>
                     <option value="General">General</option>
                     <option value="OBC">OBC</option>
@@ -101,24 +152,34 @@
                     <option value="ST">ST</option>
                     <option value="EWS">EWS</option>
                     <option value="Other">Other</option>
+
                 </select>
             </div>
 
             <div class="field" id="categoryOtherBox" hidden>
-                <label>Enter Category</label>
-                <input type="text" name="otherCategory"
-                       placeholder="Enter category">
+                <label>Enter Category *</label>
+
+                <input type="text"
+                       name="otherCategory"
+                       maxlength="100"
+                       placeholder="Enter your category">
             </div>
 
             <div class="field">
                 <label>Nationality</label>
-                <input type="text" name="nationality"
-                       value="Indian" maxlength="50">
+
+                <input type="text"
+                       name="nationality"
+                       value="Indian"
+                       maxlength="50">
             </div>
 
         </div>
 
-        <!-- CONTACT INFORMATION -->
+
+        <!-- ================================= -->
+        <!-- 2. CONTACT INFORMATION -->
+        <!-- ================================= -->
 
         <h3>2. Contact Information</h3>
 
@@ -126,32 +187,50 @@
 
             <div class="field">
                 <label>Mobile Number *</label>
-                <input type="tel" name="mobile" id="mobile"
-                       maxlength="10" inputmode="numeric"
+
+                <input type="tel"
+                       name="mobile"
+                       id="mobile"
+                       maxlength="10"
+                       minlength="10"
+                       inputmode="numeric"
                        pattern="[6-9][0-9]{9}"
                        placeholder="10 digit mobile number"
-                       autocomplete="tel" required>
+                       autocomplete="tel"
+                       required>
             </div>
 
             <div class="field">
                 <label>WhatsApp Number</label>
-                <input type="tel" name="whatsapp" id="whatsapp"
-                       maxlength="10" inputmode="numeric"
+
+                <input type="tel"
+                       name="whatsapp"
+                       id="whatsapp"
+                       maxlength="10"
+                       minlength="10"
+                       inputmode="numeric"
                        pattern="[6-9][0-9]{9}"
                        placeholder="WhatsApp number">
             </div>
 
             <div class="field">
                 <label>Alternate Mobile Number</label>
-                <input type="tel" name="alternateMobile"
-                       maxlength="10" inputmode="numeric"
+
+                <input type="tel"
+                       name="alternateMobile"
+                       maxlength="10"
+                       minlength="10"
+                       inputmode="numeric"
                        pattern="[6-9][0-9]{9}"
-                       placeholder="Alternate mobile">
+                       placeholder="Alternate mobile number">
             </div>
 
             <div class="field">
                 <label>Email Address</label>
-                <input type="email" name="email" id="email"
+
+                <input type="email"
+                       name="email"
+                       id="email"
                        maxlength="150"
                        placeholder="example@gmail.com"
                        autocomplete="email">
@@ -159,7 +238,10 @@
 
         </div>
 
-        <!-- ADDRESS -->
+
+        <!-- ================================= -->
+        <!-- 3. ADDRESS INFORMATION -->
+        <!-- ================================= -->
 
         <h3>3. Address Information</h3>
 
@@ -167,64 +249,94 @@
 
             <div class="field">
                 <label>Country *</label>
-                <input type="text" name="country"
-                       value="India" required>
+
+                <input type="text"
+                       name="country"
+                       value="India"
+                       maxlength="100"
+                       required>
             </div>
 
             <div class="field">
                 <label>State *</label>
-                <input type="text" name="state" id="state"
-                       value="Uttar Pradesh" required
-                       maxlength="100">
+
+                <input type="text"
+                       name="state"
+                       id="state"
+                       value="Uttar Pradesh"
+                       maxlength="100"
+                       required>
             </div>
 
             <div class="field">
                 <label>District *</label>
-                <input type="text" name="district" id="district"
+
+                <input type="text"
+                       name="district"
+                       id="district"
+                       maxlength="100"
                        placeholder="Enter district"
-                       maxlength="100" required>
+                       required>
             </div>
 
             <div class="field">
                 <label>City / Village *</label>
-                <input type="text" name="city"
+
+                <input type="text"
+                       name="city"
+                       maxlength="100"
                        placeholder="Enter city or village"
-                       maxlength="100" required>
+                       required>
             </div>
 
             <div class="field">
                 <label>Tehsil</label>
-                <input type="text" name="tehsil"
+
+                <input type="text"
+                       name="tehsil"
                        maxlength="100"
                        placeholder="Enter tehsil">
             </div>
 
             <div class="field">
                 <label>Post Office</label>
-                <input type="text" name="postOffice"
-                       maxlength="100">
+
+                <input type="text"
+                       name="postOffice"
+                       maxlength="100"
+                       placeholder="Enter post office">
             </div>
 
             <div class="field">
                 <label>PIN Code *</label>
-                <input type="text" name="pincode"
-                       maxlength="6" minlength="6"
+
+                <input type="text"
+                       name="pincode"
+                       maxlength="6"
+                       minlength="6"
                        inputmode="numeric"
                        pattern="[0-9]{6}"
-                       placeholder="6 digit PIN code" required>
+                       placeholder="6 digit PIN code"
+                       required>
             </div>
 
             <div class="field full">
                 <label>Full Address *</label>
-                <textarea name="address" id="address"
-                          rows="3" maxlength="500"
+
+                <textarea name="address"
+                          id="address"
+                          rows="3"
+                          maxlength="500"
                           placeholder="House number, street, village, post, etc."
                           required></textarea>
             </div>
 
         </div>
 
-        <!-- EDUCATION -->
+
+        <!-- ================================= -->
+        <!-- 4. EDUCATION INFORMATION -->
+        <!-- ================================= -->
 
         <h3>4. Education Information</h3>
 
@@ -232,7 +344,11 @@
 
             <div class="field">
                 <label>Highest Qualification *</label>
-                <select name="qualification" id="qualification" required>
+
+                <select name="qualification"
+                        id="qualification"
+                        required>
+
                     <option value="">Select Qualification</option>
                     <option value="Uneducated">Uneducated</option>
                     <option value="5th Pass">5th Pass</option>
@@ -254,45 +370,62 @@
                     <option value="M.Sc">M.Sc</option>
                     <option value="M.Tech">M.Tech</option>
                     <option value="Other">Other</option>
+
                 </select>
             </div>
 
             <div class="field" id="qualificationOtherBox" hidden>
                 <label>Enter Qualification *</label>
-                <input type="text" name="otherQualification"
+
+                <input type="text"
+                       name="otherQualification"
                        maxlength="150"
                        placeholder="Enter your qualification">
             </div>
 
             <div class="field">
                 <label>Course / Trade / Stream</label>
-                <input type="text" name="course"
+
+                <input type="text"
+                       name="course"
                        maxlength="150"
                        placeholder="Example: Electrical Engineering">
             </div>
 
             <div class="field">
                 <label>Board / University / Institute</label>
-                <input type="text" name="institute"
-                       maxlength="200">
+
+                <input type="text"
+                       name="institute"
+                       maxlength="200"
+                       placeholder="Enter institute name">
             </div>
 
             <div class="field">
                 <label>Passing Year</label>
-                <input type="number" name="passingYear"
-                       min="1950" max="2100">
+
+                <input type="number"
+                       name="passingYear"
+                       min="1950"
+                       max="2100"
+                       placeholder="Example: 2024">
             </div>
 
             <div class="field">
                 <label>Percentage / CGPA</label>
-                <input type="text" name="percentage"
+
+                <input type="text"
+                       name="percentage"
                        maxlength="20"
                        placeholder="Example: 75% or 8.2 CGPA">
             </div>
 
         </div>
 
-        <!-- WORK EXPERIENCE -->
+
+        <!-- ================================= -->
+        <!-- 5. WORK EXPERIENCE -->
+        <!-- ================================= -->
 
         <h3>5. Work Experience</h3>
 
@@ -300,7 +433,11 @@
 
             <div class="field">
                 <label>Experience *</label>
-                <select name="experience" id="experience" required>
+
+                <select name="experience"
+                        id="experience"
+                        required>
+
                     <option value="">Select Experience</option>
                     <option value="Fresher">Fresher</option>
                     <option value="Less than 1 Year">Less than 1 Year</option>
@@ -308,35 +445,48 @@
                     <option value="2-5 Years">2-5 Years</option>
                     <option value="5-10 Years">5-10 Years</option>
                     <option value="More than 10 Years">More than 10 Years</option>
+
                 </select>
             </div>
 
             <div class="field">
                 <label>Current Employment Status</label>
+
                 <select name="employmentStatus">
+
                     <option value="">Select Status</option>
                     <option value="Working">Currently Working</option>
                     <option value="Not Working">Not Working</option>
                     <option value="Self Employed">Self Employed</option>
                     <option value="Student">Student</option>
+
                 </select>
             </div>
 
             <div class="field">
                 <label>Previous / Current Company</label>
-                <input type="text" name="company"
-                       maxlength="150">
+
+                <input type="text"
+                       name="company"
+                       maxlength="150"
+                       placeholder="Enter company name">
             </div>
 
             <div class="field">
                 <label>Previous Designation</label>
-                <input type="text" name="designation"
-                       maxlength="150">
+
+                <input type="text"
+                       name="designation"
+                       maxlength="150"
+                       placeholder="Enter designation">
             </div>
 
             <div class="field">
                 <label>Experience Industry</label>
-                <select name="industry" id="industry">
+
+                <select name="industry"
+                        id="industry">
+
                     <option value="">Select Industry</option>
                     <option value="Manufacturing">Manufacturing</option>
                     <option value="Electronics">Electronics</option>
@@ -348,17 +498,25 @@
                     <option value="Healthcare">Healthcare</option>
                     <option value="Automobile">Automobile</option>
                     <option value="Other">Other</option>
+
                 </select>
             </div>
 
             <div class="field" id="industryOtherBox" hidden>
-                <label>Enter Industry</label>
-                <input type="text" name="otherIndustry">
+                <label>Enter Industry *</label>
+
+                <input type="text"
+                       name="otherIndustry"
+                       maxlength="150"
+                       placeholder="Enter your industry">
             </div>
 
         </div>
 
-        <!-- JOB PREFERENCE -->
+
+        <!-- ================================= -->
+        <!-- 6. JOB PREFERENCE -->
+        <!-- ================================= -->
 
         <h3>6. Job Preference</h3>
 
@@ -366,7 +524,11 @@
 
             <div class="field">
                 <label>Preferred Work Type *</label>
-                <select name="workType" id="workType" required>
+
+                <select name="workType"
+                        id="workType"
+                        required>
+
                     <option value="">Select Work Type</option>
                     <option value="Private Job">Private Job</option>
                     <option value="Government Job">Government Job</option>
@@ -384,53 +546,71 @@
                     <option value="Work From Home">Work From Home</option>
                     <option value="Any Suitable Job">Any Suitable Job</option>
                     <option value="Other">Other</option>
+
                 </select>
             </div>
 
             <div class="field" id="workTypeOtherBox" hidden>
                 <label>Enter Preferred Work Type *</label>
-                <input type="text" name="otherWorkType"
+
+                <input type="text"
+                       name="otherWorkType"
+                       maxlength="150"
                        placeholder="Enter preferred job">
             </div>
 
             <div class="field">
                 <label>Preferred Job Location</label>
-                <input type="text" name="preferredLocation"
+
+                <input type="text"
+                       name="preferredLocation"
                        maxlength="200"
                        placeholder="Example: Rudrapur, Bareilly">
             </div>
 
             <div class="field">
-                <label>Expected Salary</label>
-                <input type="number" name="expectedSalary"
-                       min="0" max="10000000"
-                       placeholder="Monthly salary in INR">
+                <label>Expected Salary (Monthly)</label>
+
+                <input type="number"
+                       name="expectedSalary"
+                       min="0"
+                       max="10000000"
+                       placeholder="Salary in INR">
             </div>
 
             <div class="field">
                 <label>Preferred Job Shift</label>
+
                 <select name="preferredShift">
+
                     <option value="">Select Shift</option>
                     <option value="Day Shift">Day Shift</option>
                     <option value="Night Shift">Night Shift</option>
                     <option value="Rotational Shift">Rotational Shift</option>
                     <option value="Any Shift">Any Shift</option>
+
                 </select>
             </div>
 
             <div class="field">
                 <label>Ready to Relocate?</label>
+
                 <select name="relocation">
+
                     <option value="">Select</option>
                     <option value="Yes">Yes</option>
                     <option value="No">No</option>
                     <option value="Depends">Depends on Location</option>
+
                 </select>
             </div>
 
         </div>
 
-        <!-- SKILLS -->
+
+        <!-- ================================= -->
+        <!-- 7. SKILLS & ADDITIONAL INFORMATION -->
+        <!-- ================================= -->
 
         <h3>7. Skills & Additional Information</h3>
 
@@ -438,26 +618,38 @@
 
             <div class="field full">
                 <label>Skills / Special Knowledge</label>
-                <textarea name="skills" rows="3"
+
+                <textarea name="skills"
+                          rows="3"
                           maxlength="1000"
                           placeholder="Enter your skills, computer knowledge, technical skills, etc."></textarea>
             </div>
 
             <div class="field full">
                 <label>Additional Information</label>
-                <textarea name="message" rows="3"
+
+                <textarea name="message"
+                          rows="3"
                           maxlength="1000"
                           placeholder="Any other important information..."></textarea>
             </div>
 
         </div>
 
-        <!-- CONSENT -->
+
+        <!-- ================================= -->
+        <!-- 8. CONSENT -->
+        <!-- ================================= -->
+
+        <h3>8. Declaration</h3>
 
         <div class="consent">
 
-            <input type="checkbox" id="consent"
-                   name="consent" value="Yes" required>
+            <input type="checkbox"
+                   id="consent"
+                   name="consent"
+                   value="Yes"
+                   required>
 
             <label for="consent">
                 मैं पुष्टि करता/करती हूँ कि मेरे द्वारा दी गई जानकारी सही है।
@@ -466,6 +658,11 @@
             </label>
 
         </div>
+
+
+        <!-- ================================= -->
+        <!-- SUBMIT -->
+        <!-- ================================= -->
 
         <button type="submit" id="submitBtn">
             Submit Registration
@@ -481,100 +678,208 @@
 
 </main>
 
+
 <footer>
-    <p>© <span id="year"></span> BYS ASSOCIATE JOB. All Rights Reserved.</p>
+    <p>
+        © <span id="year"></span>
+        BYS ASSOCIATE JOB. All Rights Reserved.
+    </p>
 </footer>
 
+
+<!-- ================================= -->
+<!-- FORM INTERACTION -->
+<!-- ================================= -->
+
 <script>
-document.getElementById("year").textContent =
-    new Date().getFullYear();
 
-// -----------------------------------
-// OTHER FIELD HANDLING
-// -----------------------------------
+document.addEventListener("DOMContentLoaded", function() {
 
-function setupOther(selectId, boxId, inputName, required = false) {
+    const form = document.getElementById("workerForm");
 
-    const select = document.getElementById(selectId);
-    const box = document.getElementById(boxId);
-    const input = box.querySelector(`[name="${inputName}"]`);
+    // Current year
+    document.getElementById("year").textContent =
+        new Date().getFullYear();
 
-    function update() {
 
-        const show = select.value === "Other";
+    // =================================
+    // OTHER FIELD HANDLING
+    // =================================
 
-        box.hidden = !show;
-        input.required = show;
+    function setupOther(selectId, boxId, inputName) {
 
-        if (!show) {
-            input.value = "";
+        const select = document.getElementById(selectId);
+        const box = document.getElementById(boxId);
+
+        if (!select || !box) return;
+
+        const input = box.querySelector(
+            `[name="${inputName}"]`
+        );
+
+        if (!input) return;
+
+        function update() {
+
+            const show = select.value === "Other";
+
+            box.hidden = !show;
+
+            input.required = show;
+
+            if (!show) {
+                input.value = "";
+            }
+
         }
+
+        select.addEventListener("change", update);
+
+        update();
+
     }
 
-    select.addEventListener("change", update);
-    update();
-}
 
-setupOther(
-    "qualification",
-    "qualificationOtherBox",
-    "otherQualification"
-);
+    // Gender
+    setupOther(
+        "gender",
+        "genderOtherBox",
+        "otherGender"
+    );
 
-setupOther(
-    "category",
-    "categoryOtherBox",
-    "otherCategory"
-);
+    // Marital Status
+    setupOther(
+        "maritalStatus",
+        "maritalOtherBox",
+        "otherMaritalStatus"
+    );
 
-setupOther(
-    "industry",
-    "industryOtherBox",
-    "otherIndustry"
-);
+    // Category
+    setupOther(
+        "category",
+        "categoryOtherBox",
+        "otherCategory"
+    );
 
-setupOther(
-    "workType",
-    "workTypeOtherBox",
-    "otherWorkType"
-);
+    // Qualification
+    setupOther(
+        "qualification",
+        "qualificationOtherBox",
+        "otherQualification"
+    );
 
-// -----------------------------------
-// EXPERIENCE HANDLING
-// -----------------------------------
+    // Industry
+    setupOther(
+        "industry",
+        "industryOtherBox",
+        "otherIndustry"
+    );
 
-const experience = document.getElementById("experience");
+    // Work Type
+    setupOther(
+        "workType",
+        "workTypeOtherBox",
+        "otherWorkType"
+    );
 
-experience.addEventListener("change", function() {
 
-    // Experience is stored as selected.
-    // No additional field is required.
+    // =================================
+    // MOBILE NUMBER INPUT
+    // =================================
 
-});
+    const mobileFields = [
+        "mobile",
+        "whatsapp",
+        "alternateMobile"
+    ];
 
-// -----------------------------------
-// MOBILE INPUT
-// -----------------------------------
+    mobileFields.forEach(function(name) {
 
-["mobile", "whatsapp", "alternateMobile"].forEach(name => {
+        const input = form.querySelector(
+            `[name="${name}"]`
+        );
 
-    const input = document.querySelector(`[name="${name}"]`);
+        if (!input) return;
 
-    input.addEventListener("input", function() {
-        this.value = this.value.replace(/\D/g, "").slice(0, 10);
+        input.addEventListener("input", function() {
+
+            this.value = this.value
+                .replace(/\D/g, "")
+                .slice(0, 10);
+
+        });
+
+    });
+
+
+    // =================================
+    // PIN CODE VALIDATION
+    // =================================
+
+    const pincode = form.querySelector(
+        '[name="pincode"]'
+    );
+
+    pincode.addEventListener("input", function() {
+
+        this.value = this.value
+            .replace(/\D/g, "")
+            .slice(0, 6);
+
+    });
+
+
+    // =================================
+    // DATE OF BIRTH VALIDATION
+    // =================================
+
+    const dob = document.getElementById("dob");
+
+    const today = new Date();
+
+    const localToday =
+        today.getFullYear() + "-" +
+        String(today.getMonth() + 1).padStart(2, "0") + "-" +
+        String(today.getDate()).padStart(2, "0");
+
+    dob.max = localToday;
+
+
+    // =================================
+    // PREVENT FUTURE PASSING YEAR
+    // =================================
+
+    const passingYear = form.querySelector(
+        '[name="passingYear"]'
+    );
+
+    passingYear.max = today.getFullYear();
+
+
+    // =================================
+    // FORM VALIDATION
+    // =================================
+
+    form.addEventListener("submit", function(event) {
+
+        if (!form.checkValidity()) {
+
+            event.preventDefault();
+
+            form.reportValidity();
+
+            return;
+
+        }
+
     });
 
 });
 
-// -----------------------------------
-// DATE VALIDATION
-// -----------------------------------
-
-document.getElementById("dob").max =
-    new Date().toISOString().split("T")[0];
-
 </script>
 
+
+<!-- MAIN API SUBMISSION SCRIPT -->
 <script src="worker-registration.js"></script>
 
 </body>
