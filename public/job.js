@@ -1,167 +1,151 @@
 
 const API = "https://bys-9pma.onrender.com";
 
-const form = document.getElementById("workerForm");
-const submitBtn = document.getElementById("submitBtn");
-const formMessage = document.getElementById("formMessage");
-
-document.getElementById("year").textContent =
-    new Date().getFullYear();
+const jobDetails = document.getElementById("jobDetails");
+const yearElement = document.getElementById("year");
 
 // --------------------------------------------------
-// MESSAGE
+// INITIALIZATION
 // --------------------------------------------------
 
-function showMessage(message, type) {
-
-    formMessage.textContent = message;
-    formMessage.className = type;
-    formMessage.style.display = message ? "block" : "none";
+if (yearElement) {
+    yearElement.textContent = new Date().getFullYear();
 }
 
 // --------------------------------------------------
-// MOBILE NORMALIZATION
+// SAFE HTML
 // --------------------------------------------------
 
-function cleanNumber(value) {
+function escapeHTML(value) {
 
-    let mobile = String(value || "").replace(/\D/g, "");
-
-    if (mobile.length === 12 && mobile.startsWith("91")) {
-        mobile = mobile.slice(2);
-    }
-
-    if (mobile.length === 11 && mobile.startsWith("0")) {
-        mobile = mobile.slice(1);
-    }
-
-    return mobile;
-}
-
-function validMobile(value) {
-    return /^[6-9]\d{9}$/.test(value);
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+    })[char]);
 }
 
 // --------------------------------------------------
-// SUBMIT PROTECTION
+// GET JOB ID FROM URL
+// Supports: job-details.html?id=123
 // --------------------------------------------------
 
-let isSubmitting = false;
+function getJobId() {
 
-form.addEventListener("submit", async function (e) {
+    const params = new URLSearchParams(window.location.search);
 
-    e.preventDefault();
+    return params.get("id") ||
+           params.get("jobId") ||
+           params.get("job");
+}
 
-    if (isSubmitting) {
+// --------------------------------------------------
+// DISPLAY JOB DETAILS
+// --------------------------------------------------
+
+function displayJob(job) {
+
+    if (!job || typeof job !== "object") {
+        throw new Error("Invalid job information received.");
+    }
+
+    const fields = [
+        ["Organization", job.organization],
+        ["Category", job.category],
+        ["Qualification", job.qualification],
+        ["Location", job.location],
+        ["Salary", job.salary],
+        ["Vacancies", job.vacancies],
+        ["Job Type", job.jobType],
+        ["Eligibility", job.eligibility],
+        ["Last Date", job.lastDate]
+    ];
+
+    const detailsHTML = fields
+        .filter(([label, value]) =>
+            value !== undefined &&
+            value !== null &&
+            String(value).trim() !== ""
+        )
+        .map(([label, value]) => `
+            <div class="detail-item">
+                <strong>${escapeHTML(label)}:</strong>
+                <span>${escapeHTML(value)}</span>
+            </div>
+        `)
+        .join("");
+
+    const description = job.description || "";
+    const extraDescription = job.message || "";
+
+    jobDetails.innerHTML = `
+        <div class="job-detail-content">
+
+            <h2>${escapeHTML(job.title || "Job Details")}</h2>
+
+            <div class="job-status">
+                ${escapeHTML(job.status || "Application Started")}
+            </div>
+
+            ${detailsHTML}
+
+            ${description ? `
+                <section class="job-description">
+                    <h3>Job Description</h3>
+                    <p>${escapeHTML(description).replace(/\n/g, "<br>")}</p>
+                </section>
+            ` : ""}
+
+            ${extraDescription ? `
+                <section>
+                    <h3>Additional Information</h3>
+                    <p>${escapeHTML(extraDescription).replace(/\n/g, "<br>")}</p>
+                </section>
+            ` : ""}
+
+            <div class="job-actions">
+                <a href="apply.html?id=${encodeURIComponent(job._id)}"
+                   class="apply-btn">
+                   Apply Now
+                </a>
+            </div>
+
+        </div>
+    `;
+}
+
+// --------------------------------------------------
+// LOAD JOB DETAILS FROM API
+// --------------------------------------------------
+
+async function loadJobDetails() {
+
+    const jobId = getJobId();
+
+    if (!jobId || !/^\d+$/.test(jobId)) {
+
+        jobDetails.innerHTML = `
+            <p class="error">
+                Invalid Job ID. Please open the job again from Latest Jobs.
+            </p>
+        `;
+
         return;
     }
 
-    showMessage("", "");
-
-    const mobile = cleanNumber(
-        document.getElementById("mobile").value
-    );
-
-    const whatsapp = cleanNumber(
-        document.getElementById("whatsapp").value
-    );
-
-    // Validate mobile
-    if (!validMobile(mobile)) {
-
-        showMessage(
-            "कृपया सही 10 अंकों का मोबाइल नंबर दर्ज करें।",
-            "error"
-        );
-
-        return;
-    }
-
-    // Validate WhatsApp
-    if (whatsapp && !validMobile(whatsapp)) {
-
-        showMessage(
-            "कृपया सही WhatsApp नंबर दर्ज करें।",
-            "error"
-        );
-
-        return;
-    }
-
-    // Form data
-    const data = {
-
-        name: document.getElementById("name").value.trim(),
-
-        mobile: mobile,
-
-        whatsapp: whatsapp,
-
-        email: document.getElementById("email").value.trim(),
-
-        state: document.getElementById("state").value.trim(),
-
-        district: document.getElementById("district").value.trim(),
-
-        address: document.getElementById("address").value.trim(),
-
-        qualification: document.getElementById("qualification").value,
-
-        experience: document.getElementById("experience").value,
-
-        workType: document.getElementById("workType").value,
-
-        message: document.getElementById("message").value.trim()
-    };
-
-    // Required fields
-    if (
-        !data.name ||
-        !data.state ||
-        !data.district ||
-        !data.address ||
-        !data.qualification ||
-        !data.experience ||
-        !data.workType
-    ) {
-
-        showMessage(
-            "कृपया सभी जरूरी जानकारी भरें।",
-            "error"
-        );
-
-        return;
-    }
-
-    // Consent
-    if (!document.getElementById("consent").checked) {
-
-        showMessage(
-            "कृपया फॉर्म जमा करने से पहले पुष्टि स्वीकार करें।",
-            "error"
-        );
-
-        return;
-    }
-
-    // Disable repeated clicks
-    isSubmitting = true;
-
-    submitBtn.disabled = true;
-    submitBtn.textContent = "Submitting...";
+    jobDetails.innerHTML = "<p>Loading job details...</p>";
 
     try {
 
         const response = await fetch(
-            `${API}/api/workers/register`,
+            `${API}/api/jobs/${encodeURIComponent(jobId)}`,
             {
-                method: "POST",
-
+                method: "GET",
                 headers: {
-                    "Content-Type": "application/json"
-                },
-
-                body: JSON.stringify(data)
+                    "Accept": "application/json"
+                }
             }
         );
 
@@ -170,63 +154,38 @@ form.addEventListener("submit", async function (e) {
         try {
             result = await response.json();
         } catch {
-            result = {};
+            throw new Error("Server returned an invalid response.");
         }
 
-        // --------------------------------------------------
-        // DUPLICATE REGISTRATION
-        // HTTP 409
-        // --------------------------------------------------
-
-        if (response.status === 409) {
-
-            showMessage(
-                result.message ||
-                "आपका Worker Registration पहले से मौजूद है। एक मोबाइल नंबर से केवल एक Registration किया जा सकता है।",
-                "error"
-            );
-
-            return;
-        }
-
-        // Other errors
         if (!response.ok) {
-
-            showMessage(
-                result.message ||
-                "Registration जमा नहीं हो पाया। कृपया दोबारा प्रयास करें।",
-                "error"
+            throw new Error(
+                result.message || `Server Error: ${response.status}`
             );
-
-            return;
         }
 
-        // Success
-        showMessage(
-            `Registration सफलतापूर्वक जमा हो गया। Registration ID: ${result.registrationId || ""}`,
-            "success"
-        );
-
-        form.reset();
+        displayJob(result);
 
     } catch (error) {
 
-        console.error(
-            "Worker Registration Error:",
-            error
-        );
+        console.error("Job Details Error:", error);
 
-        showMessage(
-            "Server से संपर्क नहीं हो पाया। कृपया थोड़ी देर बाद प्रयास करें।",
-            "error"
-        );
-
-    } finally {
-
-        isSubmitting = false;
-
-        submitBtn.disabled = false;
-
-        submitBtn.textContent = "Submit Registration";
+        jobDetails.innerHTML = `
+            <div class="error">
+                <h3>Unable to Load Job Details</h3>
+                <p>${escapeHTML(error.message)}</p>
+                <button type="button" onclick="loadJobDetails()">
+                    Try Again
+                </button>
+                <p>
+                    <a href="index.html">← Back to Latest Jobs</a>
+                </p>
+            </div>
+        `;
     }
-});
+}
+
+// --------------------------------------------------
+// START
+// --------------------------------------------------
+
+loadJobDetails();
